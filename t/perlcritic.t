@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: /mirror/youri/soft/check/trunk/t/perlcritic.t 1412 2006-12-12T21:29:04.312821Z nanardon  $
+# $Id$
 
 use strict;
 use warnings;
