@@ -6,8 +6,10 @@ WriteMakefile(
     VERSION_FROM => 'lib/Youri/Package/RPM/Updater.pm',
     AUTHOR       => 'Youri project <youri@zarb.org>',
     PREREQ_PM    => {
-        'RPM4'    => 0,
-        'version' => 0
+        'RPM4'        => 0,
+        'DateTime'    => 0,
+        'File::Fetch' => 0,
+        'version'     => 0
     }
 );
 
