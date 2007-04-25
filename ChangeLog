@@ -1,2 +1,6 @@
 2007-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.1.0
 	* initial release
+
+2007-04-25 Guillaume Rousse <guillomovitch@zarb.org> 0.1.1
+	* fix a wrong invocation of build_from_source as a function, instead
+	  of a method
