@@ -7,7 +7,7 @@ use File::Path;
 use File::Temp qw/tempdir/;
 use Test::More tests => 7;
 use Test::Exception;
-use URPM;
+use RPM4;
 
 BEGIN {
     use_ok('Youri::Package::RPM::Updater');
@@ -38,10 +38,8 @@ is(scalar @binaries, 1, 'one binary package');
 my @sources = <$topdir/SRPMS/*.rpm>;
 is(scalar @sources, 1, 'one source package');
 
-my $urpm = URPM->new();
-$urpm->parse_rpm($sources[0]);
-my $package = $urpm->{depslist}->[0];
-isa_ok($package, 'URPM::Package');
+my $package = RPM4::Header->new($sources[0]);
+isa_ok($package, 'RPM4::Header');
 
 my $release = `rpm --eval '%mkrel 2'`;
 chomp $release;
