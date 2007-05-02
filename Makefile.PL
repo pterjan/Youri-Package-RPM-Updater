@@ -9,6 +9,7 @@ WriteMakefile(
         'RPM4'        => 0,
         'DateTime'    => 0,
         'File::Fetch' => 0,
+        'Test::Exception' => 0,
         'version'     => 0
     }
 );
