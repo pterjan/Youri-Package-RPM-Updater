@@ -170,6 +170,10 @@ Avaiable options:
 
 =over
 
+=item verbose $level
+
+verbosity level (default: 0).
+
 =item topdir $topdir
 
 rpm top-level directory (default: rpm %_topdir macro).
@@ -244,6 +248,8 @@ sub new {
     my ($class, %options) = @_;
 
     my $self = bless {
+        _verbose           =>
+            $options{verbose}           || 0,
         _topdir            =>
             $options{topdir}            || RPM4::expand('%_topdir'),
         _sourcedir        =>
@@ -341,17 +347,18 @@ sub build_from_spec {
     my $release = $pkg_header->tag('release');
 
     # handle everything dependant on new version/release
-    if ($newversion) {
-        print "===> Building $name $newversion\n";
-    } else {    
-        print "===> Rebuilding $name\n";
+    if ($self->{_verbose}) {
+        print $newversion ?
+            "===> Building $name $newversion\n" :
+            "===> Rebuilding $name\n";
     }
 
     # install buildrequires
     if ($self->{_build_requires_callback}) {
         my @requires = $pkg_header->tag('requires');
         if (@requires) {
-            print "===> Installing BuildRequires : @requires\n";
+            print "===> Installing BuildRequires : @requires\n"
+                if $self->{_verbose};
             $self->{_build_requires_callback}->(@requires);
         }
     };
@@ -363,7 +370,8 @@ sub build_from_spec {
         grep { /(?:ftp|svns?|https?):\/\/\S+/ } @sources;
 
     if (! @remote_sources) {
-        print "No remote sources were found, fall back on URL tag ...\n";
+        print "No remote sources were found, fall back on URL tag ...\n"
+            if $self->{_verbose};
 
         my $url = $pkg_header->tag('url');
 
@@ -573,6 +581,7 @@ sub build_from_spec {
         } elsif ($self->{_build_source}) {
             $command .= " -bs $self->{_options} --nodeps $spec_file";
         }
+        $command .= " >/dev/null 2>&1" unless $self->{_verbose} > 1;
 
         # normalize return value to 1 for failures
         $result = system($command) ? 1 : 0;
@@ -629,7 +638,7 @@ sub _fetch_svn {
 sub _fetch_tarball {
     my ($self, $url) = @_;
 
-    print "attempting to download $url\n";
+    print "attempting to download $url\n" if $self->{_verbose};
     my $ff = File::Fetch->new(uri => $url);
     my $result = $ff->fetch(to => $self->{_sourcedir});
     if ($result) {
@@ -641,7 +650,8 @@ sub _fetch_tarball {
             my $alternate_filename = $filename;
             $alternate_url =~ s/\.tar\.bz2/$extension/;
             $alternate_filename =~ s/\.tar\.bz2/$extension/;
-            print "attempting to download $alternate_url\n";
+            print "attempting to download $alternate_url\n"
+                if $self->{_verbose};
             $ff = File::Fetch->new(uri => $alternate_url);
             $result = $ff->fetch(to => $self->{_sourcedir});
 
