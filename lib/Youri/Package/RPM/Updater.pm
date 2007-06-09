@@ -208,13 +208,23 @@ build binary packages (default: true).
 
 =item build_requires_callback $callback
 
-callback to execute before build, with build dependencies as
-argument (default: none).
+callback to execute before build, with build dependencies as argument (default:
+none).
+
+=item build_requires_command $command
+
+external command to execute before build, with build dependencies as argument
+(default: none).
 
 =item build_results_callback $callback
 
 callback to execute after build, with build packages as argument (default:
 none).
+
+=item build_results_command $command
+
+external command to execute after build, with build packages as argument
+(default: none).
 
 =item spec_line_callback $callback
 
@@ -276,6 +286,10 @@ sub new {
             $options{build_requires_callback} || undef,
         _build_results_callback  =>
             $options{build_results_callback}  || undef,
+        _build_requires_command =>
+            $options{build_requires_command}  || undef,
+        _build_results_command  =>
+            $options{build_results_command}   || undef,
         _spec_line_callback      =>
             $options{spec_line_callback}      || undef,
         _new_source_callback     =>
@@ -353,15 +367,20 @@ sub build_from_spec {
             "===> Rebuilding $name\n";
     }
 
-    # install buildrequires
-    if ($self->{_build_requires_callback}) {
+    if ($self->{_build_requires_callback} || $self->{_build_requires_command}) {
         my @requires = $pkg_header->tag('requires');
         if (@requires) {
-            print "===> Installing BuildRequires : @requires\n"
+            print "===> managing build dependencies : @requires\n"
                 if $self->{_verbose};
-            $self->{_build_requires_callback}->(@requires);
+            $self->{_build_requires_callback}->(@requires)
+                if $self->{_build_requires_callback};
+            # we can't use multiple args version of system here, as we can't 
+            # assume build requires command is just a program name, as in 
+            # 'sudo rurpmi' case
+            system("$self->{_build_requires_command} @requires")
+                if $self->{_build_requires_command};
         }
-    };
+    }
 
     # compute sources URL
     my @sources = $pkg_spec->sources_url();
@@ -589,14 +608,17 @@ sub build_from_spec {
         $result = 0;
     }
 
-    if ($self->{_build_results_callback}) {
-        my @rpms_upload;
-        push(@rpms_upload, $pkg_spec->srcrpm);
-        foreach my $pkg_bin_file ($pkg_spec->binrpm()) {
-            -f $pkg_bin_file or next;
-            push(@rpms_upload, $pkg_bin_file);
-        }
-        $self->{_build_results_callback}->(@rpms_upload);
+    if ($self->{_build_results_callback} || $self->{_build_results_command}) {
+        my @results =
+            grep { -f $_ }
+            $pkg_spec->srcrpm(),
+            $pkg_spec->binrpm();
+        print "===> managing build results : @results\n"
+            if $self->{_verbose};
+        $self->{_build_results_callback}->(@results)
+            if $self->{_build_results_callback};
+        system("$self->{_build_results_command} @results")
+            if $self->{_build_results_command};
     }
 
     return $result;
