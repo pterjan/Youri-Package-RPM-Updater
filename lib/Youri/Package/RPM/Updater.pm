@@ -410,14 +410,14 @@ sub build_from_spec {
     # handle everything dependant on new version/release
     if ($self->{_verbose}) {
         print $newversion ?
-            "===> Building $name $newversion\n" :
-            "===> Rebuilding $name\n";
+            "building $name $newversion\n" :
+            "rebuilding $name\n";
     }
 
     if ($self->{_build_requires_callback}) {
         my @requires = $pkg_header->tag('requires');
         if (@requires) {
-            print "===> managing build dependencies : @requires\n"
+            print "managing build dependencies : @requires\n"
                 if $self->{_verbose};
             $self->{_build_requires_callback}->(@requires);
         }
@@ -657,7 +657,7 @@ sub build_from_spec {
             grep { -f $_ }
             $pkg_spec->srcrpm(),
             $pkg_spec->binrpm();
-        print "===> managing build results : @results\n"
+        print "managing build results : @results\n"
             if $self->{_verbose};
         $self->{_build_results_callback}->(@results)
     }
