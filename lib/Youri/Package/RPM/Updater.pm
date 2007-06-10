@@ -99,7 +99,7 @@ use File::Spec;
 use File::Path;
 use File::Fetch;
 use RPM4;
-use version; our $VERSION = qv('0.1.1');
+use version; our $VERSION = qv('0.2.0');
 
 # silence File::Fetch warnings
 $File::Fetch::WARN = 0;
