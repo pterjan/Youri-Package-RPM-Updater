@@ -230,6 +230,11 @@ external command to execute after build, with build packages as argument
 
 callback to execute as filter for each spec file line (default: none).
 
+=item spec_line_expression $expression
+
+perl expression (or list of expressions) to evaluate for each spec file line
+(default: none).
+
 =item new_source_callback $callback
 
 callback to execute before build for each new source (default: none).
@@ -454,8 +459,28 @@ sub build_from_spec {
 
     }
 
+     if ($self->{_spec_line_expression}) {
+        my $code;
+        $code .= '$self->{_spec_line_callback} = sub {';
+        $code .= '$_ = $_[0];';
+        foreach my $expression (
+            ref $self->{_spec_line_expression} eq 'ARRAY' ?
+                @{$self->{_spec_line_expression}} :
+                $self->{_spec_line_expression}
+        ) {
+            $code .= $expression;
+        }
+        $code .= 'return $_;';
+        $code .= '}';
+        eval $code;
+        warn "Invalid code $code, skipping" if $@;
+    }
+
     # update spec file
-    if ($self->{_update_revision} || $self->{_update_changelog}) {
+    if ($self->{_update_revision}    ||
+        $self->{_update_changelog}   ||
+        $self->{_spec_line_callback}
+    ) {
         open(my $in, '<', $spec_file)
             or croak "Unable to open file $spec_file: $!";
 
