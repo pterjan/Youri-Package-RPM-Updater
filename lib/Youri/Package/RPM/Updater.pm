@@ -213,8 +213,8 @@ none).
 
 =item build_requires_command $command
 
-external command to execute before build, with build dependencies as argument
-(default: none).
+external command (or list of commands) to execute before build, with build
+dependencies as argument (default: none). Takes precedence over previous option.
 
 =item build_results_callback $callback
 
@@ -223,8 +223,7 @@ none).
 
 =item build_results_command $command
 
-external command to execute after build, with build packages as argument
-(default: none).
+external command (or list of commands) to execute after build, with build packages as argument (default: none). Takes precedence over previous option.
 
 =item spec_line_callback $callback
 
@@ -233,7 +232,7 @@ callback to execute as filter for each spec file line (default: none).
 =item spec_line_expression $expression
 
 perl expression (or list of expressions) to evaluate for each spec file line
-(default: none).
+(default: none). Takes precedence over previous option.
 
 =item new_source_callback $callback
 
@@ -261,6 +260,53 @@ list of directories containing source packages (default: empty).
 
 sub new {
     my ($class, %options) = @_;
+
+    if ($options{build_requires_command}) {
+        $options{build_requires_callback} = sub {
+            foreach my $command (
+                ref $options{build_requires_command} eq 'ARRAY' ?
+                    @{$options{build_requires_command}} :
+                    $options{build_requires_command}
+            ) {
+                # we can't use multiple args version of system here, as we
+                # can't assume given command is just a program name,
+                # as in 'sudo rurpmi' case
+                system("$command @_");
+            }
+        }
+    }
+
+    if ($options{build_results_command}) {
+        $options{build_results_callback} = sub {
+            foreach my $command (
+                ref $options{build_results_command} eq 'ARRAY' ?
+                    @{$options{build_results_command}} :
+                    $options{build_results_command}
+            ) {
+                # same issue here
+                system("command @_");
+            }
+        }
+    }
+
+     if ($options{spec_line_expression}) {
+        my $code;
+        $code .= '$options{spec_line_callback} = sub {';
+        $code .= '$_ = $_[0];';
+        foreach my $expression (
+            ref $options{spec_line_expression} eq 'ARRAY' ?
+                @{$options{spec_line_expression}} :
+                $options{spec_line_expression}
+        ) {
+            $code .= $expression;
+            $code .= ";\n" unless $expression =~ /;$/;
+        }
+        $code .= 'return $_;';
+        $code .= '}';
+        eval $code;
+        warn "unable to compile given expression into code $code, skipping"
+            if $@;
+    }
 
     my $self = bless {
         _verbose           =>
@@ -291,10 +337,6 @@ sub new {
             $options{build_requires_callback} || undef,
         _build_results_callback  =>
             $options{build_results_callback}  || undef,
-        _build_requires_command =>
-            $options{build_requires_command}  || undef,
-        _build_results_command  =>
-            $options{build_results_command}   || undef,
         _spec_line_callback      =>
             $options{spec_line_callback}      || undef,
         _new_source_callback     =>
@@ -372,18 +414,12 @@ sub build_from_spec {
             "===> Rebuilding $name\n";
     }
 
-    if ($self->{_build_requires_callback} || $self->{_build_requires_command}) {
+    if ($self->{_build_requires_callback}) {
         my @requires = $pkg_header->tag('requires');
         if (@requires) {
             print "===> managing build dependencies : @requires\n"
                 if $self->{_verbose};
-            $self->{_build_requires_callback}->(@requires)
-                if $self->{_build_requires_callback};
-            # we can't use multiple args version of system here, as we can't 
-            # assume build requires command is just a program name, as in 
-            # 'sudo rurpmi' case
-            system("$self->{_build_requires_command} @requires")
-                if $self->{_build_requires_command};
+            $self->{_build_requires_callback}->(@requires);
         }
     }
 
@@ -457,23 +493,6 @@ sub build_from_spec {
             }
         }
 
-    }
-
-     if ($self->{_spec_line_expression}) {
-        my $code;
-        $code .= '$self->{_spec_line_callback} = sub {';
-        $code .= '$_ = $_[0];';
-        foreach my $expression (
-            ref $self->{_spec_line_expression} eq 'ARRAY' ?
-                @{$self->{_spec_line_expression}} :
-                $self->{_spec_line_expression}
-        ) {
-            $code .= $expression;
-        }
-        $code .= 'return $_;';
-        $code .= '}';
-        eval $code;
-        warn "Invalid code $code, skipping" if $@;
     }
 
     # update spec file
@@ -633,7 +652,7 @@ sub build_from_spec {
         $result = 0;
     }
 
-    if ($self->{_build_results_callback} || $self->{_build_results_command}) {
+    if ($self->{_build_results_callback}) {
         my @results =
             grep { -f $_ }
             $pkg_spec->srcrpm(),
@@ -641,9 +660,6 @@ sub build_from_spec {
         print "===> managing build results : @results\n"
             if $self->{_verbose};
         $self->{_build_results_callback}->(@results)
-            if $self->{_build_results_callback};
-        system("$self->{_build_results_command} @results")
-            if $self->{_build_results_command};
     }
 
     return $result;
