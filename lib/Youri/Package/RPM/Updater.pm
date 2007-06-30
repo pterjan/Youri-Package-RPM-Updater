@@ -308,6 +308,12 @@ sub new {
             if $@;
     }
 
+    # force internal rpmlib configuration
+    RPM4::add_macro("_topdir " . File::Spec->rel2abs($options{topdir}))
+        if $options{topdir};
+    RPM4::add_macro("_sourcedir " . File::Spec->rel2abs($options{sourcedir}))
+        if $options{sourcedir};
+
     my $self = bless {
         _verbose           =>
             $options{verbose}           || 0,
