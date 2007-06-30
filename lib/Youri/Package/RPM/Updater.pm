@@ -569,7 +569,7 @@ sub build_from_spec {
                         my $dist_suffix = $self->{_release_suffix};
 
                         ($prefix, $number, $suffix) =
-                            $value =~ /^(.*)(\d+)(\Q$dist_suffix\E)?$/;
+                            $value =~ /^(.*?)(\d+)(\Q$dist_suffix\E)?$/;
 
                         croak "Unable to extract release number from value '$value'"
                             unless $number;
