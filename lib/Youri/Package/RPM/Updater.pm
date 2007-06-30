@@ -637,7 +637,6 @@ sub build_from_spec {
         close($out);
     }
 
-    my $result;
     if ($self->{_build_source} || $self->{_build_binary}) {
         my $command = "rpm";
         $command .= " --define '_topdir $self->{_topdir}'";
@@ -652,10 +651,9 @@ sub build_from_spec {
         }
         $command .= " >/dev/null 2>&1" unless $self->{_verbose} > 1;
 
-        # normalize return value to 1 for failures
-        $result = system($command) ? 1 : 0;
-    } else {
-        $result = 0;
+        my $result = system($command) ? 1 : 0;
+        croak("Error during building: $?\n")
+            unless $result == 0;
     }
 
     if ($self->{_build_results_callback}) {
@@ -667,8 +665,6 @@ sub build_from_spec {
             if $self->{_verbose};
         $self->{_build_results_callback}->(@results)
     }
-
-    return $result;
 }
 
 sub _fetch {
