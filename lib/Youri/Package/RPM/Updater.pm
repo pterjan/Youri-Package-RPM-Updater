@@ -654,16 +654,16 @@ sub build_from_spec {
         my $result = system($command) ? 1 : 0;
         croak("Error during building: $?\n")
             unless $result == 0;
-    }
 
-    if ($self->{_build_results_callback}) {
-        my @results =
-            grep { -f $_ }
-            $pkg_spec->srcrpm(),
-            $pkg_spec->binrpm();
-        print "managing build results : @results\n"
-            if $self->{_verbose};
-        $self->{_build_results_callback}->(@results)
+        if ($self->{_build_results_callback}) {
+            my @results =
+                grep { -f $_ }
+                $pkg_spec->srcrpm(),
+                $pkg_spec->binrpm();
+            print "managing build results : @results\n"
+                if $self->{_verbose};
+            $self->{_build_results_callback}->(@results)
+        }
     }
 }
 
