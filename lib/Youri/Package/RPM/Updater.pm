@@ -311,13 +311,13 @@ sub new {
     # force internal rpmlib configuration
     my ($topdir, $sourcedir);
     if ($options{topdir}) {
-        my $topdir = File::Spec->rel2abs($options{topdir});
+        $topdir = File::Spec->rel2abs($options{topdir});
         RPM4::add_macro("_topdir $topdir");
     } else {
         $topdir = RPM4::expand('%_topdir');
     }
     if ($options{sourcedir}) {
-        my $sourcedir = File::Spec->rel2abs($options{sourcedir});
+        $sourcedir = File::Spec->rel2abs($options{sourcedir});
         RPM4::add_macro("_sourcedir $sourcedir");
     } else {
         $sourcedir = RPM4::expand('%_sourcedir');
