@@ -642,14 +642,24 @@ sub build_from_spec {
         $command .= " --define '_topdir $self->{_topdir}'";
         $command .= " --define '_sourcedir $self->{_sourcedir}'";
 
+        my @dirs = qw/builddir/;
         if ($self->{_build_source} && $self->{_build_binaries}) {
             $command .= " -ba $self->{_options} $spec_file";
+            push(@dirs, qw/rpmdir srcrpmdir/);
         } elsif ($self->{_build_binaries}) {
             $command .= " -bb $self->{_options} $spec_file";
+            push(@dirs, qw/rpmdir/);
         } elsif ($self->{_build_source}) {
             $command .= " -bs $self->{_options} --nodeps $spec_file";
+            push(@dirs, qw/srcrpmdir/);
         }
         $command .= " >/dev/null 2>&1" unless $self->{_verbose} > 1;
+
+        # check needed directories exist
+        foreach my $dir (map { RPM4::expand("\%_$_") } @dirs) {
+            next if -d $dir;
+            mkdir $dir or croak "Can't create directory $dir: $!\n";
+        }
 
         my $result = system($command) ? 1 : 0;
         croak("Error during building: $?\n")
