@@ -309,18 +309,25 @@ sub new {
     }
 
     # force internal rpmlib configuration
-    RPM4::add_macro("_topdir " . File::Spec->rel2abs($options{topdir}))
-        if $options{topdir};
-    RPM4::add_macro("_sourcedir " . File::Spec->rel2abs($options{sourcedir}))
-        if $options{sourcedir};
+    my ($topdir, $sourcedir);
+    if ($options{topdir}) {
+        my $topdir = File::Spec->rel2abs($options{topdir});
+        RPM4::add_macro("_topdir $topdir");
+    } else {
+        $topdir = RPM4::expand('%_topdir');
+    }
+    if ($options{sourcedir}) {
+        my $sourcedir = File::Spec->rel2abs($options{sourcedir});
+        RPM4::add_macro("_sourcedir $sourcedir");
+    } else {
+        $sourcedir = RPM4::expand('%_sourcedir');
+    }
 
     my $self = bless {
         _verbose           =>
             $options{verbose}           || 0,
-        _topdir            =>
-            $options{topdir}            || RPM4::expand('%_topdir'),
-        _sourcedir        =>
-            $options{sourcedir}         || RPM4::expand('%_sourcedir'),
+        _topdir            => $topdir,
+        _sourcedir         => $sourcedir,
         _options           =>
             $options{options}           || '',
         _download          =>
