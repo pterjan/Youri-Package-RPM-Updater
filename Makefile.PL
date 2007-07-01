@@ -8,7 +8,7 @@ WriteMakefile(
     PREREQ_PM    => {
         'RPM4'               => 0,
         'DateTime'           => 0,
-        'File::Fetch'        => 0,
+        'LWP::UserAgent'     => 0,
         'Test::Exception'    => 0,
         'SVN::Client'        => 0,
         'String::ShellQuote' => 0,
