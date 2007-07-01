@@ -99,6 +99,7 @@ use File::Spec;
 use File::Path;
 use File::Fetch;
 use File::Temp qw/tempdir/;
+use SVN::Client;
 use RPM4;
 use version; our $VERSION = qv('0.2.0');
 
@@ -702,19 +703,17 @@ sub _fetch_svn {
     croak "Cannot extract revision number from the name."
         if $basename !~ /^(.*)-([^-]*rev)(\d\d*).tar.bz2$/;
     my ($name, $prefix, $release) = ($1, $2, $3);
-    my $current_dir = cwd();
-    my $dir = tempdir(CLEANUP => 1);
-    chdir $dir or croak "Cannot change dir to $dir";
-    system("svn co -r $release $repos", "svn checkout failed on $repos");
-    my $basedir = basename($repos);
 
-    # FIXME quite inelegant, should use a dedicated cpan module.
-    my $complete_name = "$name-$prefix$release";
-    move($basedir, $complete_name);
-    system("find $complete_name -name '.svn' | xargs rm -Rf");
-    system("tar -cjf $complete_name.tar.bz2 $complete_name", "tar failed");
-    system("mv -f $complete_name.tar.bz2 $current_dir");
-    chdir $current_dir;
+    # extract repository in a temp directory
+    my $dir = tempdir(CLEANUP => 1);
+    my $archive = "$name-$prefix$release";
+    my $svn = SVN::Client->new();
+    $svn->export($repos, "$dir/$archive", $release);
+
+    # archive and compress result
+    my $result = system("tar -cjf $archive.tar.bz2 -C $dir $archive");
+    croak("Error during archive creation: $?\n")
+        unless $result == 0;
 }
 
 sub _fetch_tarball {
