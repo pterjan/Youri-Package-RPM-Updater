@@ -99,6 +99,7 @@ use File::Spec;
 use File::Path;
 use File::Fetch;
 use File::Temp qw/tempdir/;
+use String::ShellQuote;
 use SVN::Client;
 use RPM4;
 use version; our $VERSION = qv('0.2.0');
@@ -273,7 +274,7 @@ sub new {
                 # we can't use multiple args version of system here, as we
                 # can't assume given command is just a program name,
                 # as in 'sudo rurpmi' case
-                system("$command @_");
+                system($command . ' ' . shell_quote(@_));
             }
         }
     }
@@ -286,7 +287,7 @@ sub new {
                     $options{build_results_command}
             ) {
                 # same issue here
-                system("command @_");
+                system(command . ' ' . shell_quote(@_));
             }
         }
     }
