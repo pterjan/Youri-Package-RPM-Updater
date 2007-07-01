@@ -305,7 +305,9 @@ sub new {
         }
         $code .= 'return $_;';
         $code .= '}';
+        ## no critic ProhibitStringyEva
         eval $code;
+        ## use critic
         warn "unable to compile given expression into code $code, skipping"
             if $@;
     }
