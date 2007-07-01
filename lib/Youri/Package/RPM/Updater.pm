@@ -102,7 +102,7 @@ use File::Temp qw/tempdir/;
 use String::ShellQuote;
 use SVN::Client;
 use RPM4;
-use version; our $VERSION = qv('0.2.0');
+use version; our $VERSION = qv('0.2.1');
 
 # silence File::Fetch warnings
 $File::Fetch::WARN = 0;
@@ -287,7 +287,7 @@ sub new {
                     $options{build_results_command}
             ) {
                 # same issue here
-                system(command . ' ' . shell_quote(@_));
+                system($command . ' ' . shell_quote(@_));
             }
         }
     }
