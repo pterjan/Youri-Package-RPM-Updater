@@ -381,7 +381,7 @@ sub build_from_repository {
 
     croak "No source available for package $name, aborting" unless $src_file;
 
-    return $self->build_from_source($src_file, $newversion, $newrelease);
+    $self->build_from_source($src_file, $newversion, $newrelease);
 }
 
 =head2 build_from_source($source, $version, $release)
@@ -399,7 +399,7 @@ sub build_from_source {
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
 
-    return $self->build_from_spec($spec_file, $newversion, $newrelease);
+    $self->build_from_spec($spec_file, $newversion, $newrelease);
 }
 
 =head2 build_from_spec($spec, $version, $release)
