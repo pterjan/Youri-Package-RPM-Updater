@@ -98,6 +98,7 @@ use File::Copy;
 use File::Spec;
 use File::Path;
 use File::Fetch;
+use File::Temp qw/tempdir/;
 use RPM4;
 use version; our $VERSION = qv('0.2.0');
 
@@ -701,9 +702,8 @@ sub _fetch_svn {
     croak "Cannot extract revision number from the name."
         if $basename !~ /^(.*)-([^-]*rev)(\d\d*).tar.bz2$/;
     my ($name, $prefix, $release) = ($1, $2, $3);
-    my $dir="$ENV{TMP}/rpmbuildupdate-$$"; 
     my $current_dir = cwd();
-    mkdir $dir or croak "Cannot create dir $dir";
+    my $dir = tempdir(CLEANUP => 1);
     chdir $dir or croak "Cannot change dir to $dir";
     system("svn co -r $release $repos", "svn checkout failed on $repos");
     my $basedir = basename($repos);
