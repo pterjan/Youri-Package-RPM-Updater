@@ -731,7 +731,7 @@ sub _fetch_tarball {
                 if $self->{_verbose};
             my $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
-                system("bzme -f -F $self->{_sourcedir}/$file");
+                system("bzme -f -F $file");
                 $file =~ s/$extension$/\.tar\.bz2/;
                 last;
             }
