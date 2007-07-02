@@ -102,7 +102,7 @@ use LWP::UserAgent;
 use String::ShellQuote;
 use SVN::Client;
 use RPM4;
-use version; our $VERSION = qv('0.2.1');
+use version; our $VERSION = qv('0.3.0');
 
 # add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
 # http://jabberstudio.org/files/ejogger/
