@@ -13,3 +13,6 @@
 	checking source file presence
 	* fix identifying release when release number exceed one digit
 	* rewrite the svn extraction part in real perl
+
+2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.1
+	* quote arguments of external commands

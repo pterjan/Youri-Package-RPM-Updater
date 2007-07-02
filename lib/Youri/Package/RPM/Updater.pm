@@ -97,16 +97,14 @@ use File::Basename;
 use File::Copy; 
 use File::Spec;
 use File::Path;
-use File::Fetch;
+use File::Temp qw/tempdir/;
+use LWP::UserAgent;
+use String::ShellQuote;
+use SVN::Client;
 use File::Temp qw/tempdir/;
 use SVN::Client;
 use RPM4;
-use version; our $VERSION = qv('0.2.0');
-
-# silence File::Fetch warnings
-$File::Fetch::WARN = 0;
-# blacklist lynx handler for false positives
-$File::Fetch::BLACKLIST = [ qw/ftp lynx/ ];
+use version; our $VERSION = qv('0.2.1');
 
 # add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
 # http://jabberstudio.org/files/ejogger/
@@ -273,7 +271,7 @@ sub new {
                 # we can't use multiple args version of system here, as we
                 # can't assume given command is just a program name,
                 # as in 'sudo rurpmi' case
-                system("$command @_");
+                system($command . ' ' . shell_quote(@_));
             }
         }
     }
@@ -286,7 +284,7 @@ sub new {
                     $options{build_results_command}
             ) {
                 # same issue here
-                system("command @_");
+                system($command . ' ' . shell_quote(@_));
             }
         }
     }
@@ -722,33 +720,48 @@ sub _fetch_tarball {
     my ($self, $url) = @_;
 
     print "attempting to download $url\n" if $self->{_verbose};
-    my $ff = File::Fetch->new(uri => $url);
-    my $result = $ff->fetch(to => $self->{_sourcedir});
-    if ($result) {
-        return 1;
-    } else {
-        my $filename = basename($url);
+    my $agent = LWP::UserAgent->new();
+    $agent->env_proxy();
+
+    my $file = $self->_fetch_potential_tarball($agent, $url);
+
+    if (!$file) {
         foreach my $extension (@EXTENSIONS) {
             my $alternate_url = $url;
-            my $alternate_filename = $filename;
-            $alternate_url =~ s/\.tar\.bz2/$extension/;
-            $alternate_filename =~ s/\.tar\.bz2/$extension/;
+            $alternate_url =~ s/\.tar\.bz2$/$extension/;
             print "attempting to download $alternate_url\n"
                 if $self->{_verbose};
-            $ff = File::Fetch->new(uri => $alternate_url);
-            $result = $ff->fetch(to => $self->{_sourcedir});
-
-            if ($result) {
-                system("bzme -f -F $self->{_sourcedir}/$alternate_filename");
-                return 1;
+            my $file = $self->_fetch_potential_tarball($agent, $alternate_url);
+            if ($file) {
+                system("bzme -f -F $self->{_sourcedir}/$file");
+                $file =~ s/$extension$/\.tar\.bz2/;
+                last;
             }
         }
     }
 
-    # failure
-    return;
+    return $file;
 }
 
+sub _fetch_potential_tarball {
+    my ($self, $agent, $url) = @_;
+
+    my $filename = basename($url);
+    my $dest = "$self->{_sourcedir}/$filename";
+
+    my $response = $agent->mirror($url, $dest);
+    if ($response->is_success) {
+        # check content type
+        my $type = $response->header('Content-Type');
+        if ($type =~ m!^application/x-(tar|gz|bz2)$!) {
+            return $dest;
+        } else {
+            # wrong type
+            unlink $dest;
+            return;
+        }
+    }
+}
 
 
 sub _get_packager {
