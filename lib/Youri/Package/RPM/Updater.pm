@@ -363,14 +363,14 @@ sub new {
 
 =head1 INSTANCE METHODS
 
-=head2 build_from_repository($name, $version, $release)
+=head2 build_from_repository($name, $version, $options)
 
-Update package with name $name to version $version and release $release.
+Update package with name $name to version $version.
 
 =cut
 
 sub build_from_repository {
-    my ($self, $name, $newversion, $newrelease) = @_;
+    my ($self, $name, $newversion, $options) = @_;
     croak "Not a class method" unless ref $self;
     my $src_file;
 
@@ -381,17 +381,32 @@ sub build_from_repository {
 
     croak "No source available for package $name, aborting" unless $src_file;
 
-    $self->build_from_source($src_file, $newversion, $newrelease);
+    $self->build_from_source($src_file, $newversion, $options);
 }
 
-=head2 build_from_source($source, $version, $release)
+=head2 build_from_source($source, $version, $options)
 
-Update package with source file $source to version $version and release $release.
+Update package with source file $source to version $version.
+
+Available options:
+
+=over
+
+=item force_version => $version
+
+Force package version, whatever given one (useful when software version differs
+from package one).
+
+=item force_release => $release
+
+Force package release, whatever computed one.
+
+=back
 
 =cut
 
 sub build_from_source {
-    my ($self, $src_file, $newversion, $newrelease) = @_;
+    my ($self, $src_file, $newversion, $options) = @_;
     croak "Not a class method" unless ref $self;
 
     my ($spec_file) = RPM4::installsrpm($src_file);
@@ -399,17 +414,17 @@ sub build_from_source {
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
 
-    $self->build_from_spec($spec_file, $newversion, $newrelease);
+    $self->build_from_spec($spec_file, $newversion, $options);
 }
 
-=head2 build_from_spec($spec, $version, $release)
+=head2 build_from_spec($spec, $version, $options)
 
-Update package with spec file $spec to version $version and release $release.
+Update package with spec file $spec to version $version.
 
 =cut
 
 sub build_from_spec {
-    my ($self, $spec_file, $newversion, $newrelease) = @_;
+    my ($self, $spec_file, $newversion, $options) = @_;
     croak "Not a class method" unless ref $self;
 
     my $pkg_spec = RPM4::Spec->new($spec_file, force => 1)
@@ -534,7 +549,11 @@ sub build_from_spec {
                 $/ox
             ) {
                 my ($directive, $definition) = ($1, $2);
-                $line = $directive . $newversion . "\n";
+                $line = $directive .
+                        ($options->{force_version} ?
+                            $options->{force_version} :
+                            $newversion) .
+                        "\n";
 
                 # just to skip test for next lines
                 $version = $newversion;
@@ -585,7 +604,11 @@ sub build_from_spec {
 
                 }
 
-                $line = $directive . $newrelease . "\n";
+                $line = $directive .
+                        ($options->{force_release} ?
+                            $options->{force_release} :
+                            $newrelease)
+                        . "\n";
 
                 # just to skip test for next lines
                 $release = $newrelease;
