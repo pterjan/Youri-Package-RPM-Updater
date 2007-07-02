@@ -669,7 +669,7 @@ sub build_from_spec {
         }
 
         my $result = system($command) ? 1 : 0;
-        croak("Error during building: $?\n")
+        croak("Build error\n")
             unless $result == 0;
 
         if ($self->{_build_results_callback}) {
