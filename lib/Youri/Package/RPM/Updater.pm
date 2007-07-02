@@ -392,12 +392,15 @@ Available options:
 
 =over
 
-=item force_version => $version
+=item old_soft_version => $version
 
-Force package version, whatever given one (useful when software version differs
-from package one).
+Force old software version instead of old package version in sources URL.
 
-=item force_release => $release
+=item new_package_version => $version
+
+Force new package version instead of new software version.
+
+=item release => $release
 
 Force package release, whatever computed one.
 
@@ -491,8 +494,8 @@ sub build_from_spec {
 
             # ensure version substitution in source URL works
             # even if package and software version don't matche
-            my $old_version = $options{force_old_version} ?
-                $options{force_old_version} : $version;
+            my $old_version = $options{old_soft_version} ?
+                $options{old_soft_version} : $version;
 
             $remote_source =~ s/$old_version/$newversion/g;
 
@@ -555,8 +558,8 @@ sub build_from_spec {
             ) {
                 my ($directive, $definition) = ($1, $2);
                 $line = $directive .
-                        ($options{force_new_version} ?
-                            $options{force_new_version} :
+                        ($options{new_package_version} ?
+                            $options{new_package_version} :
                             $newversion) .
                         "\n";
 
@@ -610,8 +613,8 @@ sub build_from_spec {
                 }
 
                 $line = $directive .
-                        ($options{force_release} ?
-                            $options{force_release} :
+                        ($options{release} ?
+                            $options{release} :
                             $newrelease)
                         . "\n";
 
