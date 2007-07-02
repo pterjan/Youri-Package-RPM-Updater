@@ -751,7 +751,7 @@ sub _fetch_potential_tarball {
     if ($response->is_success) {
         # check content type
         my $type = $response->header('Content-Type');
-        if ($type =~ m!^application/x-(tar|gz|bz2)$!) {
+        if ($type =~ m!^application/x-(tar|gz|bz2|bzip2)$!) {
             return $dest;
         } else {
             # wrong type
