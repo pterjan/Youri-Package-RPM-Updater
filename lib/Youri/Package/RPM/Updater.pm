@@ -489,7 +489,14 @@ sub build_from_spec {
                 );
             }
 
-            $remote_source =~ s/$version/$newversion/g;
+            # ensure version substitution in source URL works
+            # even if package and software version don't matche
+            my $old_version = $options{force_old_version} ?
+                $options{force_old_version} : $version;
+            my $new_version = $options{force_new_version} ?
+                $options{force_new_version} : $newversion;
+
+            $remote_source =~ s/$old_version/$new_version/g;
 
             # GNOME: add the major version to the URL automatically
             # for example: ftp://ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
@@ -550,8 +557,8 @@ sub build_from_spec {
             ) {
                 my ($directive, $definition) = ($1, $2);
                 $line = $directive .
-                        ($options{'force-version'} ?
-                            $options{'force-version'} :
+                        ($options{force_new_version} ?
+                            $options{force_new_version} :
                             $newversion) .
                         "\n";
 
@@ -605,8 +612,8 @@ sub build_from_spec {
                 }
 
                 $line = $directive .
-                        ($options{'force-release'} ?
-                            $options{'force_release'} :
+                        ($options{force_release} ?
+                            $options{force_release} :
                             $newrelease)
                         . "\n";
 
