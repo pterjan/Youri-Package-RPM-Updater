@@ -729,7 +729,7 @@ sub _fetch_tarball {
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
             print "attempting to download $alternate_url\n"
                 if $self->{_verbose};
-            my $file = $self->_fetch_potential_tarball($agent, $alternate_url);
+            $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
                 system("bzme -f -F $file");
                 $file =~ s/$extension$/\.tar\.bz2/;
