@@ -4,15 +4,3 @@
 2007-04-25 Guillaume Rousse <guillomovitch@zarb.org> 0.1.1
 	* fix a wrong invocation of build_from_source as a function, instead
 	  of a method
-
-2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.0
-	* allow to pass external commands instead of callbacks for pre and
-	post building stage, and perl expressions instead of callback for spec
-	file parsing
-	* fix usage with rpm 4.4.8, which doesn't allow to parse spec without
-	checking source file presence
-	* fix identifying release when release number exceed one digit
-	* rewrite the svn extraction part in real perl
-
-2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.1
-	* quote arguments of external commands
