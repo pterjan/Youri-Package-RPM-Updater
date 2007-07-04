@@ -101,6 +101,7 @@ use File::Temp qw/tempdir/;
 use LWP::UserAgent;
 use String::ShellQuote;
 use SVN::Client;
+use File::Temp qw/tempdir/;
 use RPM4;
 use version; our $VERSION = qv('0.3.0');
 
