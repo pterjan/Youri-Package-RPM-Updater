@@ -139,17 +139,6 @@ my @SF_MIRRORS = qw/
     ovh
     mesh
     switch
-    belnet
-    puzzle
-    heanet
-    kent
-    voxel
-    easynews
-    cogent
-    optusnet
-    jaist
-    nchc
-    citkit
 /;
 
 my @EXTENSIONS = qw/
