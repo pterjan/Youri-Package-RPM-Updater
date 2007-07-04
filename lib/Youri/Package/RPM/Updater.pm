@@ -743,7 +743,9 @@ sub _fetch_tarball {
 
     my $file = $self->_fetch_potential_tarball($agent, $url);
 
-    if (!$file) {
+    # Mandriva policy implies to recompress sources, so if the one that was
+    # just looked for was missing, check with other formats
+    if (!$file and if $url =~ /\.tar\.bz2$/) {
         foreach my $extension (@EXTENSIONS) {
             my $alternate_url = $url;
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
