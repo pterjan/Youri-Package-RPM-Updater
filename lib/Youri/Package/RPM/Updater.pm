@@ -155,7 +155,6 @@ my @SF_MIRRORS = qw/
 my @EXTENSIONS = qw/
     .tar.gz
     .tgz
-    .tar.Z
     .zip
 /;
 
