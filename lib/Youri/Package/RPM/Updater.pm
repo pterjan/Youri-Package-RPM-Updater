@@ -770,6 +770,9 @@ sub _fetch_potential_tarball {
     my $filename = basename($url);
     my $dest = "$self->{_sourcedir}/$filename";
 
+    # don't attempt to download file if already present
+    return $dest if -f $dest;
+
     my $response = $agent->mirror($url, $dest);
     if ($response->is_success) {
         # check content type
