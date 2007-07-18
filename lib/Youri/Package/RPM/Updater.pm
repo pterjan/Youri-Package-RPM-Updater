@@ -472,49 +472,55 @@ sub build_from_spec {
         @remote_sources && # remote sources
         $self->{_download}
     ) { 
-        my $found = 0;
 
-        foreach my $remote_source (@remote_sources) {
-
-            if ($self->{_old_source_callback}) {
-                $self->{_old_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($remote_source)
-                );
-            }
+        foreach my $old_source (@remote_sources) {
 
             # ensure version substitution in source URL works
             # even if package and software version don't matche
             my $old_version = $options{old_soft_version} ?
                 $options{old_soft_version} : $version;
 
-            $remote_source =~ s/$old_version/$newversion/g;
+            my $new_source = $old_source;
 
-            # GNOME: add the major version to the URL automatically
-            # for example: ftp://ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-            # is rewritten in ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-            if ($remote_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                (my $major = $newversion) =~ s/([^.]+\.[^.]+).*/$1/;
-                $remote_source =~ s!(.*/)(.*)!$1$major/$2!;
-            }
+            # skip if substitution doesn't match
+            next unless
+                $new_source =~ s/$old_version/$newversion/g;
 
-            if ($remote_source =~ m!http://prdownloads.sourceforge.net!) {
-                # download from sourceforge mirrors
+            my $found;
+
+            # Sourceforge: attempt different mirrors
+            if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
                 foreach my $sf_mirror (@SF_MIRRORS) {
-                    my $sf_remote_source = $remote_source;
-                    $sf_remote_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
-                    $found = $self->_fetch_tarball($sf_remote_source);
+                    my $sf_new_source = $new_source;
+                    $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                    $found = $self->_fetch_tarball($sf_new_source);
                     last if $found;
                 }
             } else {
-                # download directly
-                $found = $self->_fetch($remote_source);
+                # GNOME: add the major version to the URL automatically
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                # is rewritten in
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+                if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                    (my $major = $newversion) =~ s/([^.]+\.[^.]+).*/$1/;
+                    $new_source =~ s!(.*/)(.*)!$1$major/$2!;
+                }
+
+                # single attempt
+                $found = $self->_fetch($new_source);
             }
 
-            croak "Unable to download source: $remote_source" unless $found;
+            croak "Unable to download source: $new_source" unless $found;
+
+            if ($self->{_old_source_callback}) {
+                $self->{_old_source_callback}->(
+                    $self->{_sourcedir} . '/' . basename($old_source)
+                );
+            }
 
             if ($self->{_new_source_callback}) {
                 $self->{_new_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($remote_source)
+                    $self->{_sourcedir} . '/' . basename($new_source)
                 );
             }
         }
