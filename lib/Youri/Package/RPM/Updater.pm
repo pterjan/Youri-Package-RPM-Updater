@@ -427,7 +427,7 @@ sub build_from_spec {
         $new_version     && # new version
         $self->{_download}
     ) {
-        @sources_before = $self->get_sources($pkg_spec, $pkg_header);
+        @sources_before = $self->_get_sources($pkg_spec, $pkg_header);
     }
 
     # handle everything dependant on new version/release
