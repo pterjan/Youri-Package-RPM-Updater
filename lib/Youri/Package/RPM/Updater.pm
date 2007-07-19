@@ -420,6 +420,15 @@ sub build_from_spec {
     my $old_version = $pkg_header->tag('version');
     my $old_release = $pkg_header->tag('release');
     my $new_release = $options{release};
+    
+    # keep track of initial sources if needed for comparaison
+    my (@sources_before, @sources_after);
+    if (
+        $new_version     && # new version
+        $self->{_download}
+    ) {
+        @sources_before = $self->get_sources($pkg_spec, $pkg_header);
+    }
 
     # handle everything dependant on new version/release
     if ($self->{_verbose}) {
@@ -571,82 +580,63 @@ sub build_from_spec {
         $new_version     && # new version
         $self->{_download}
     ) {
-        my @sources = $pkg_spec->sources_url();
+        # parse updated spec file
+        $pkg_spec = RPM4::Spec->new($spec_file, force => 1)
+            or croak "Unable to parse updated spec file $spec_file\n"; 
 
-        my @remote_sources = 
-            grep { /(?:ftp|svns?|https?):\/\/\S+/ } @sources;
+        @sources_after = $self->_get_sources($pkg_spec, $pkg_header);
+        my %seen_before = map { $_ => 1 } @sources_before;
+        my %seen_after  = map { $_ => 1 } @sources_after;
 
-        if (! @remote_sources) {
-            print "No remote sources were found, fall back on URL tag ...\n"
-                if $self->{_verbose};
+        my @new_sources = grep { !$seen_before{$_} } @sources_after;
+        my @old_sources = grep { !$seen_after{$_} }  @sources_before;
 
-            my $url = $pkg_header->tag('url');
+        foreach my $new_source (@new_sources) {
 
-            foreach my $site (@SITES) {
-                # curiously, we need two level of quoting-evaluation here :(
-                if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
-                    last;
-                }    
+            my $found;
+
+            # Sourceforge: attempt different mirrors
+            if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
+                foreach my $sf_mirror (@SF_MIRRORS) {
+                    my $sf_new_source = $new_source;
+                    $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                    $found = $self->_fetch_tarball($sf_new_source);
+                    last if $found;
+                }
+            } else {
+                # GNOME: add the major version to the URL automatically
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                # is rewritten in
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+                if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                    (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
+                    $new_source =~ s!(.*/)(.*)!$1$major/$2!;
+                }
+
+                # single attempt
+                $found = $self->_fetch($new_source);
             }
 
-            push(@remote_sources, "$url/$sources[0]")
+            croak "Unable to download source: $new_source" unless $found;
+
         }
 
-        if (@remote_sources) {
-
-            foreach my $old_source (@remote_sources) {
-
-                # ensure version substitution in source URL works
-                # even if package and software version don't matche
-                my $old_version = $options{old_soft_version} ?
-                    $options{old_soft_version} : $old_version;
-
-                my $new_source = $old_source;
-
-                # skip if substitution doesn't match
-                next unless
-                    $new_source =~ s/$old_version/$new_version/g;
-
-                my $found;
-
-                # Sourceforge: attempt different mirrors
-                if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
-                    foreach my $sf_mirror (@SF_MIRRORS) {
-                        my $sf_new_source = $new_source;
-                        $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
-                        $found = $self->_fetch_tarball($sf_new_source);
-                        last if $found;
-                    }
-                } else {
-                    # GNOME: add the major version to the URL automatically
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                    # is rewritten in
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                    if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                        (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
-                        $new_source =~ s!(.*/)(.*)!$1$major/$2!;
-                    }
-
-                    # single attempt
-                    $found = $self->_fetch($new_source);
-                }
-
-                croak "Unable to download source: $new_source" unless $found;
-
-                if ($self->{_old_source_callback}) {
-                    $self->{_old_source_callback}->(
-                        $self->{_sourcedir} . '/' . basename($old_source)
-                    );
-                }
-
-                if ($self->{_new_source_callback}) {
-                    $self->{_new_source_callback}->(
-                        $self->{_sourcedir} . '/' . basename($new_source)
-                    );
-                }
+        if ($self->{_old_source_callback}) {
+            foreach my $old_source (@old_sources) {
+                $self->{_old_source_callback}->(
+                    $self->{_sourcedir} . '/' . basename($old_source)
+                );
             }
-
         }
+
+        if ($self->{_new_source_callback}) {
+            foreach my $new_source (@new_sources) {
+                $self->{_new_source_callback}->(
+                    $self->{_sourcedir} . '/' . basename($new_source)
+                );
+            }
+        }
+
     }
 
     # build new package
@@ -811,6 +801,32 @@ sub _find_source_package {
     }
     closedir($DIR);
     return $file;
+}
+
+sub _get_sources {
+    my ($self, $spec, $header) = @_;
+
+    my @sources =
+        grep { /(?:ftp|svns?|https?):\/\/\S+/ }
+        $spec->sources_url();
+
+    if (! @sources) {
+        print "No remote sources were found, fall back on URL tag ...\n"
+            if $self->{_verbose};
+
+        my $url = $header->tag('url');
+
+        foreach my $site (@SITES) {
+            # curiously, we need two level of quoting-evaluation here :(
+            if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
+                last;
+            }    
+        }
+
+        @sources = ( $url . '/' . ($spec->sources_url())[0] );
+    }
+
+    return @sources;
 }
 
 __END__
