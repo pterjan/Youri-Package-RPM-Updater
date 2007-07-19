@@ -435,98 +435,6 @@ sub build_from_spec {
             "rebuilding $name\n";
     }
 
-    if ($self->{_build_requires_callback}) {
-        my @requires = $pkg_header->tag('requires');
-        if (@requires) {
-            print "managing build dependencies : @requires\n"
-                if $self->{_verbose};
-            $self->{_build_requires_callback}->(@requires);
-        }
-    }
-
-    # compute sources URL
-    my @sources = $pkg_spec->sources_url();
-
-    my @remote_sources = 
-        grep { /(?:ftp|svns?|https?):\/\/\S+/ } @sources;
-
-    if (! @remote_sources) {
-        print "No remote sources were found, fall back on URL tag ...\n"
-            if $self->{_verbose};
-
-        my $url = $pkg_header->tag('url');
-
-        foreach my $site (@SITES) {
-            # curiously, we need two level of quoting-evaluation here :(
-            if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
-                last;
-            }    
-        }
-
-        push(@remote_sources, "$url/$sources[0]")
-    }
-
-    # download sources
-    if (
-        $newversion     && # new version
-        @remote_sources && # remote sources
-        $self->{_download}
-    ) { 
-
-        foreach my $old_source (@remote_sources) {
-
-            # ensure version substitution in source URL works
-            # even if package and software version don't matche
-            my $old_version = $options{old_soft_version} ?
-                $options{old_soft_version} : $version;
-
-            my $new_source = $old_source;
-
-            # skip if substitution doesn't match
-            next unless
-                $new_source =~ s/$old_version/$newversion/g;
-
-            my $found;
-
-            # Sourceforge: attempt different mirrors
-            if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
-                foreach my $sf_mirror (@SF_MIRRORS) {
-                    my $sf_new_source = $new_source;
-                    $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
-                    $found = $self->_fetch_tarball($sf_new_source);
-                    last if $found;
-                }
-            } else {
-                # GNOME: add the major version to the URL automatically
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                # is rewritten in
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                    (my $major = $newversion) =~ s/([^.]+\.[^.]+).*/$1/;
-                    $new_source =~ s!(.*/)(.*)!$1$major/$2!;
-                }
-
-                # single attempt
-                $found = $self->_fetch($new_source);
-            }
-
-            croak "Unable to download source: $new_source" unless $found;
-
-            if ($self->{_old_source_callback}) {
-                $self->{_old_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($old_source)
-                );
-            }
-
-            if ($self->{_new_source_callback}) {
-                $self->{_new_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($new_source)
-                );
-            }
-        }
-
-    }
-
     # update spec file
     if ($self->{_update_revision}    ||
         $self->{_update_changelog}   ||
@@ -669,6 +577,98 @@ sub build_from_spec {
             or croak "Unable to open file $spec_file: $!";
         print $out $spec;
         close($out);
+    }
+
+    # download sources
+    my @sources = $pkg_spec->sources_url();
+
+    my @remote_sources = 
+        grep { /(?:ftp|svns?|https?):\/\/\S+/ } @sources;
+
+    if (! @remote_sources) {
+        print "No remote sources were found, fall back on URL tag ...\n"
+            if $self->{_verbose};
+
+        my $url = $pkg_header->tag('url');
+
+        foreach my $site (@SITES) {
+            # curiously, we need two level of quoting-evaluation here :(
+            if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
+                last;
+            }    
+        }
+
+        push(@remote_sources, "$url/$sources[0]")
+    }
+
+    if (
+        $newversion     && # new version
+        @remote_sources && # remote sources
+        $self->{_download}
+    ) { 
+
+        foreach my $old_source (@remote_sources) {
+
+            # ensure version substitution in source URL works
+            # even if package and software version don't matche
+            my $old_version = $options{old_soft_version} ?
+                $options{old_soft_version} : $version;
+
+            my $new_source = $old_source;
+
+            # skip if substitution doesn't match
+            next unless
+                $new_source =~ s/$old_version/$newversion/g;
+
+            my $found;
+
+            # Sourceforge: attempt different mirrors
+            if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
+                foreach my $sf_mirror (@SF_MIRRORS) {
+                    my $sf_new_source = $new_source;
+                    $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                    $found = $self->_fetch_tarball($sf_new_source);
+                    last if $found;
+                }
+            } else {
+                # GNOME: add the major version to the URL automatically
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                # is rewritten in
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+                if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                    (my $major = $newversion) =~ s/([^.]+\.[^.]+).*/$1/;
+                    $new_source =~ s!(.*/)(.*)!$1$major/$2!;
+                }
+
+                # single attempt
+                $found = $self->_fetch($new_source);
+            }
+
+            croak "Unable to download source: $new_source" unless $found;
+
+            if ($self->{_old_source_callback}) {
+                $self->{_old_source_callback}->(
+                    $self->{_sourcedir} . '/' . basename($old_source)
+                );
+            }
+
+            if ($self->{_new_source_callback}) {
+                $self->{_new_source_callback}->(
+                    $self->{_sourcedir} . '/' . basename($new_source)
+                );
+            }
+        }
+
+    }
+
+    # build new package
+    if ($self->{_build_requires_callback}) {
+        my @requires = $pkg_header->tag('requires');
+        if (@requires) {
+            print "managing build dependencies : @requires\n"
+                if $self->{_verbose};
+            $self->{_build_requires_callback}->(@requires);
+        }
     }
 
     if ($self->{_build_source} || $self->{_build_binary}) {
