@@ -360,7 +360,7 @@ Update package with name $name to version $version.
 =cut
 
 sub build_from_repository {
-    my ($self, $name, $newversion, %options) = @_;
+    my ($self, $name, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
     my $src_file;
 
@@ -371,7 +371,7 @@ sub build_from_repository {
 
     croak "No source available for package $name, aborting" unless $src_file;
 
-    $self->build_from_source($src_file, $newversion, %options);
+    $self->build_from_source($src_file, $new_version, %options);
 }
 
 =head2 build_from_source($source, $version, %options)
@@ -399,7 +399,7 @@ Force package release, whatever computed one.
 =cut
 
 sub build_from_source {
-    my ($self, $src_file, $newversion, %options) = @_;
+    my ($self, $src_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
     my ($spec_file) = RPM4::installsrpm($src_file);
@@ -407,7 +407,7 @@ sub build_from_source {
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
 
-    $self->build_from_spec($spec_file, $newversion, %options);
+    $self->build_from_spec($spec_file, $new_version, %options);
 }
 
 =head2 build_from_spec($spec, $version, %options)
@@ -417,7 +417,7 @@ Update package with spec file $spec to version $version.
 =cut
 
 sub build_from_spec {
-    my ($self, $spec_file, $newversion, %options) = @_;
+    my ($self, $spec_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
     my $pkg_spec = RPM4::Spec->new($spec_file, force => 1)
@@ -425,13 +425,13 @@ sub build_from_spec {
     my $pkg_header = $pkg_spec->srcheader();
 
     my $name    = $pkg_header->tag('name');
-    my $version = $pkg_header->tag('version');
-    my $release = $pkg_header->tag('release');
+    my $old_version = $pkg_header->tag('version');
+    my $old_release = $pkg_header->tag('release');
 
     # handle everything dependant on new version/release
     if ($self->{_verbose}) {
-        print $newversion ?
-            "building $name $newversion\n" :
+        print $new_version ?
+            "building $name $new_version\n" :
             "rebuilding $name\n";
     }
 
@@ -444,12 +444,12 @@ sub build_from_spec {
             or croak "Unable to open file $spec_file: $!";
 
         my $spec;
-        my $newrelease = '';
+        my $new_release = '';
         my $header = '';
         while (my $line = <$in>) {
             if ($self->{_update_revision} &&
-                $newversion               && # version change needed
-                $version ne $newversion   && # not already done
+                $new_version               && # version change needed
+                $old_version ne $new_version   && # not already done
                 $line =~ /^
                     (
                         \%define\s+version\s+ # defined as macro
@@ -464,15 +464,15 @@ sub build_from_spec {
                 $line = $directive .
                         ($options{new_package_version} ?
                             $options{new_package_version} :
-                            $newversion) .
+                            $new_version) .
                         "\n";
 
                 # just to skip test for next lines
-                $version = $newversion;
+                $old_version = $new_version;
             }
 
             if ($self->{_update_revision} &&
-                $release ne $newrelease   && # not already done
+                $old_release ne $new_release   && # not already done
                 $line =~ /^
                 (
                     \%define\s+release\s+ # defined as macro
@@ -485,7 +485,7 @@ sub build_from_spec {
             ) {
                 my ($directive, $definition) = ($1, $2);
 
-                if (! $newrelease) {
+                if (! $new_release) {
                     # if not explicit release given, try to compute it
                     my ($macro, $value) = $definition =~ /^(%\w+\s+)?(.*)$/;
 
@@ -493,7 +493,7 @@ sub build_from_spec {
                         unless $value;
 
                     my ($prefix, $number, $suffix); 
-                    if ($newversion) {
+                    if ($new_version) {
                         $number = 1;
                     } else {
                         # optional suffix from configuration
@@ -508,7 +508,7 @@ sub build_from_spec {
                         $number++;
                     }
 
-                    $newrelease = 
+                    $new_release = 
                         ($macro ? $macro : "") .
                         ($prefix ? $prefix : "") .
                         $number .
@@ -519,11 +519,11 @@ sub build_from_spec {
                 $line = $directive .
                         ($options{release} ?
                             $options{release} :
-                            $newrelease)
+                            $new_release)
                         . "\n";
 
                 # just to skip test for next lines
-                $release = $newrelease;
+                $old_release = $new_release;
             }
 
             $line = $self->{_spec_line_callback}->($line)
@@ -542,10 +542,10 @@ sub build_from_spec {
 
                 my @entries = @{$self->{_changelog_entries}};
                 if (@entries) {
-                    s/\%\%VERSION/$newversion/ foreach @entries;
+                    s/\%\%VERSION/$new_version/ foreach @entries;
                 } else  {
-                    @entries = $newversion ?
-                        "New version $newversion" :
+                    @entries = $new_version ?
+                        "New version $new_version" :
                         'Rebuild';
                 }
 
@@ -557,8 +557,8 @@ sub build_from_spec {
                             $pkg_header->tag('epoch') . ':' :
                             ''
                     ) .
-                    $version . '-' .
-                    $release
+                    $new_version . '-' .
+                    $new_release
                 );
 
                 $spec .= "* $header\n";
@@ -581,7 +581,7 @@ sub build_from_spec {
 
     # download sources
     if (
-        $newversion     && # new version
+        $new_version     && # new version
         $self->{_download}
     ) {
         my @sources = $pkg_spec->sources_url();
@@ -612,13 +612,13 @@ sub build_from_spec {
                 # ensure version substitution in source URL works
                 # even if package and software version don't matche
                 my $old_version = $options{old_soft_version} ?
-                    $options{old_soft_version} : $version;
+                    $options{old_soft_version} : $old_version;
 
                 my $new_source = $old_source;
 
                 # skip if substitution doesn't match
                 next unless
-                    $new_source =~ s/$old_version/$newversion/g;
+                    $new_source =~ s/$old_version/$new_version/g;
 
                 my $found;
 
@@ -636,7 +636,7 @@ sub build_from_spec {
                     # is rewritten in
                     # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
                     if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                        (my $major = $newversion) =~ s/([^.]+\.[^.]+).*/$1/;
+                        (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
                         $new_source =~ s!(.*/)(.*)!$1$major/$2!;
                     }
 
