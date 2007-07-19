@@ -437,8 +437,7 @@ sub build_from_spec {
             or croak "Unable to open file $spec_file: $!";
 
         my $spec;
-        my $header = '';
-        my ($version_updated, $release_updated);
+        my ($version_updated, $release_updated, $changelog_updated);
         while (my $line = <$in>) {
             if ($self->{_update_revision} &&
                 $new_version               && # version change needed
@@ -516,7 +515,7 @@ sub build_from_spec {
             $spec .= $line;
 
             if ($self->{_update_changelog} &&
-                !$header                   && # not already done
+                !$changelog_updated        && # not already done
                 $line =~ /^\%changelog/
             ) {
                 # skip until first changelog entry, as requested for bug #21389
@@ -534,7 +533,7 @@ sub build_from_spec {
                         'Rebuild';
                 }
 
-                $header = RPM4::expand(
+                my $header = RPM4::expand(
                     DateTime->now()->strftime('%a %b %d %Y') . ' ' .
                     $self->_get_packager() . ' ' .
                     (
@@ -554,6 +553,9 @@ sub build_from_spec {
 
                 # don't forget kept line
                 $spec .= $line;
+
+                # just to skip test for next lines
+                $changelog_updated = 1;
             }
         }
         close($in);
