@@ -382,17 +382,9 @@ Available options:
 
 =over
 
-=item old_soft_version => $version
-
-Force old software version instead of old package version in sources URL.
-
-=item new_package_version => $version
-
-Force new package version instead of new software version.
-
 =item release => $release
 
-Force package release, whatever computed one.
+Force package release, instead of computing it.
 
 =back
 
@@ -427,6 +419,7 @@ sub build_from_spec {
     my $name    = $pkg_header->tag('name');
     my $old_version = $pkg_header->tag('version');
     my $old_release = $pkg_header->tag('release');
+    my $new_release = $options{release};
 
     # handle everything dependant on new version/release
     if ($self->{_verbose}) {
@@ -444,7 +437,6 @@ sub build_from_spec {
             or croak "Unable to open file $spec_file: $!";
 
         my $spec;
-        my $new_release = '';
         my $header = '';
         my ($version_updated, $release_updated);
         while (my $line = <$in>) {
@@ -462,11 +454,7 @@ sub build_from_spec {
                 $/ox
             ) {
                 my ($directive, $definition) = ($1, $2);
-                $line = $directive .
-                        ($options{new_package_version} ?
-                            $options{new_package_version} :
-                            $new_version) .
-                        "\n";
+                $line = $directive . $new_version . "\n";
 
                 # just to skip test for next lines
                 $version_updated = 1;
@@ -517,11 +505,7 @@ sub build_from_spec {
 
                 }
 
-                $line = $directive .
-                        ($options{release} ?
-                            $options{release} :
-                            $new_release)
-                        . "\n";
+                $line = $directive . $new_release . "\n";
 
                 # just to skip test for next lines
                 $release_updated = 1;
