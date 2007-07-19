@@ -663,16 +663,17 @@ sub build_from_spec {
     }
 
     # build new package
-    if ($self->{_build_requires_callback}) {
-        my @requires = $pkg_header->tag('requires');
-        if (@requires) {
-            print "managing build dependencies : @requires\n"
-                if $self->{_verbose};
-            $self->{_build_requires_callback}->(@requires);
-        }
-    }
-
     if ($self->{_build_source} || $self->{_build_binary}) {
+
+        if ($self->{_build_requires_callback}) {
+            my @requires = $pkg_header->tag('requires');
+            if (@requires) {
+                print "managing build dependencies : @requires\n"
+                    if $self->{_verbose};
+                $self->{_build_requires_callback}->(@requires);
+            }
+        }
+
         my $command = "rpm";
         $command .= " --define '_topdir $self->{_topdir}'";
         $command .= " --define '_sourcedir $self->{_sourcedir}'";
