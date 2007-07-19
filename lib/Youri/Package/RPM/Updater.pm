@@ -446,10 +446,11 @@ sub build_from_spec {
         my $spec;
         my $new_release = '';
         my $header = '';
+        my ($version_updated, $release_updated);
         while (my $line = <$in>) {
             if ($self->{_update_revision} &&
                 $new_version               && # version change needed
-                $old_version ne $new_version   && # not already done
+                !$version_updated          && # not already done
                 $line =~ /^
                     (
                         \%define\s+version\s+ # defined as macro
@@ -468,11 +469,11 @@ sub build_from_spec {
                         "\n";
 
                 # just to skip test for next lines
-                $old_version = $new_version;
+                $version_updated = 1;
             }
 
             if ($self->{_update_revision} &&
-                $old_release ne $new_release   && # not already done
+                !$release_updated         && # not already done
                 $line =~ /^
                 (
                     \%define\s+release\s+ # defined as macro
@@ -523,7 +524,7 @@ sub build_from_spec {
                         . "\n";
 
                 # just to skip test for next lines
-                $old_release = $new_release;
+                $release_updated = 1;
             }
 
             $line = $self->{_spec_line_callback}->($line)
