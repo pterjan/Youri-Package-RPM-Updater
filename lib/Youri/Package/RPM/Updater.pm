@@ -277,25 +277,9 @@ sub new {
         }
     }
 
-     if ($options{spec_line_expression}) {
-        my $code;
-        $code .= '$options{spec_line_callback} = sub {';
-        $code .= '$_ = $_[0];';
-        foreach my $expression (
-            ref $options{spec_line_expression} eq 'ARRAY' ?
-                @{$options{spec_line_expression}} :
-                $options{spec_line_expression}
-        ) {
-            $code .= $expression;
-            $code .= ";\n" unless $expression =~ /;$/;
-        }
-        $code .= 'return $_;';
-        $code .= '}';
-        ## no critic ProhibitStringyEva
-        eval $code;
-        ## use critic
-        warn "unable to compile given expression into code $code, skipping"
-            if $@;
+    if ($options{spec_line_expression}) {
+        $options{spec_line_callback} =
+            _get_callback($options{spec_line_expression});
     }
 
     # force internal rpmlib configuration
@@ -357,6 +341,25 @@ sub new {
 
 Update package with name $name to version $version.
 
+Available options:
+
+=over
+
+=item release => $release
+
+Force package release, instead of computing it.
+
+=item spec_line_callback $callback
+
+callback to execute as filter for each spec file line (default: none).
+
+=item spec_line_expression $expression
+
+perl expression (or list of expressions) to evaluate for each spec file line
+(default: none). Takes precedence over previous option.
+
+=back
+
 =cut
 
 sub build_from_repository {
@@ -378,15 +381,7 @@ sub build_from_repository {
 
 Update package with source file $source to version $version.
 
-Available options:
-
-=over
-
-=item release => $release
-
-Force package release, instead of computing it.
-
-=back
+See build_from_repository() for available options.
 
 =cut
 
@@ -405,6 +400,8 @@ sub build_from_source {
 =head2 build_from_spec($spec, $version, %options)
 
 Update package with spec file $spec to version $version.
+
+See build_from_repository() for available options.
 
 =cut
 
@@ -437,10 +434,16 @@ sub build_from_spec {
             "rebuilding $name\n";
     }
 
+    if ($options{spec_line_expression}) {
+        $options{spec_line_callback} =
+            _get_callback($options{spec_line_expression});
+    }
+
     # update spec file
     if ($self->{_update_revision}    ||
         $self->{_update_changelog}   ||
-        $self->{_spec_line_callback}
+        $self->{_spec_line_callback} ||
+        $options{spec_line_callback}
     ) {
         open(my $in, '<', $spec_file)
             or croak "Unable to open file $spec_file: $!";
@@ -519,8 +522,13 @@ sub build_from_spec {
                 $release_updated = 1;
             }
 
+            # apply global and local callbacks if any
             $line = $self->{_spec_line_callback}->($line)
                 if $self->{_spec_line_callback};
+
+            $line = $options{spec_line_callback}->($line)
+                if $options{spec_line_callback};
+
             $spec .= $line;
 
             if ($self->{_update_changelog} &&
@@ -827,6 +835,30 @@ sub _get_sources {
     }
 
     return @sources;
+}
+
+sub _get_callback {
+    my ($expressions) = @_;
+
+    my ($code, $sub);;
+    $code .= '$sub = sub {';
+    $code .= '$_ = $_[0];';
+    foreach my $expression (
+        ref $expressions eq 'ARRAY' ?
+            @{$expressions} : $expressions
+    ) {
+        $code .= $expression;
+        $code .= ";\n" unless $expression =~ /;$/;
+    }
+    $code .= 'return $_;';
+    $code .= '}';
+    ## no critic ProhibitStringyEva
+    eval $code;
+    ## use critic
+    warn "unable to compile given expression into code $code, skipping"
+        if $@;
+
+    return $sub;
 }
 
 __END__
