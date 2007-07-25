@@ -412,13 +412,13 @@ sub build_from_spec {
     my ($self, $spec_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
-    my $pkg_spec = RPM4::Spec->new($spec_file, force => 1)
+    my $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
-    my $pkg_header = $pkg_spec->srcheader();
+    my $header = $spec->srcheader();
 
-    my $name    = $pkg_header->tag('name');
-    my $old_version = $pkg_header->tag('version');
-    my $old_release = $pkg_header->tag('release');
+    my $name        = $header->tag('name');
+    my $old_version = $header->tag('version');
+    my $old_release = $header->tag('release');
     my $new_release = $options{release};
     
     # keep track of initial sources if needed for comparaison
@@ -427,7 +427,7 @@ sub build_from_spec {
         $new_version     && # new version
         $self->{_download}
     ) {
-        @sources_before = $self->_get_sources($pkg_spec, $pkg_header);
+        @sources_before = $self->_get_sources($spec, $header);
     }
 
     # handle everything dependant on new version/release
@@ -546,8 +546,8 @@ sub build_from_spec {
                     DateTime->now()->strftime('%a %b %d %Y') . ' ' .
                     $self->_get_packager() . ' ' .
                     (
-                        $pkg_header->hastag('epoch') ?
-                            $pkg_header->tag('epoch') . ':' :
+                        $header->hastag('epoch') ?
+                            $header->tag('epoch') . ':' :
                             ''
                     ) .
                     $new_version . '-' .
@@ -581,10 +581,10 @@ sub build_from_spec {
         $self->{_download}
     ) {
         # parse updated spec file
-        $pkg_spec = RPM4::Spec->new($spec_file, force => 1)
+        $spec = RPM4::Spec->new($spec_file, force => 1)
             or croak "Unable to parse updated spec file $spec_file\n"; 
 
-        @sources_after = $self->_get_sources($pkg_spec, $pkg_header);
+        @sources_after = $self->_get_sources($spec, $header);
         my %seen_before = map { $_ => 1 } @sources_before;
         my %seen_after  = map { $_ => 1 } @sources_after;
 
@@ -643,7 +643,7 @@ sub build_from_spec {
     if ($self->{_build_source} || $self->{_build_binary}) {
 
         if ($self->{_build_requires_callback}) {
-            my @requires = $pkg_header->tag('requires');
+            my @requires = $header->tag('requires');
             if (@requires) {
                 print "managing build dependencies : @requires\n"
                     if $self->{_verbose};
@@ -681,8 +681,8 @@ sub build_from_spec {
         if ($self->{_build_results_callback}) {
             my @results =
                 grep { -f $_ }
-                $pkg_spec->srcrpm(),
-                $pkg_spec->binrpm();
+                $spec->srcrpm(),
+                $spec->binrpm();
             print "managing build results : @results\n"
                 if $self->{_verbose};
             $self->{_build_results_callback}->(@results)
