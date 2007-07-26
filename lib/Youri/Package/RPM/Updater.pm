@@ -611,40 +611,40 @@ sub build_from_spec {
 
         foreach my $new_source (@new_sources) {
 
+            # work on a copy, so as to not mess with original list
+            my $source = $new_source;
             my ($found, $need_bzme);
 
             # Sourceforge: attempt different mirrors
-            if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
+            if ($source =~ m!http://prdownloads.sourceforge.net!) {
                 foreach my $sf_mirror (@SF_MIRRORS) {
-                    my $sf_new_source = $new_source;
-                    $sf_new_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
-                    $found = $self->_fetch_tarball($sf_new_source);
+                    my $sf_source = $source;
+                    $sf_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                    $found = $self->_fetch_tarball($sf_source);
                     last if $found;
                 }
             } else {
-                if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                if ($source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
                     # GNOME: add the major version to the URL automatically
                     # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
                     # is rewritten in
                     # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
                     (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
-                    $new_source =~ s!(.*/)(.*)!$1$major/$2!;
-                } elsif ($new_source =~ m!\w+\.(perl|cpan)\.org/!) {
+                    $source =~ s!(.*/)(.*)!$1$major/$2!;
+                } elsif ($source =~ m!\w+\.(perl|cpan)\.org/!) {
                     # CPAN: force http and tar.gz
-                    $need_bzme = $new_source =~ s!\.tar\.bz2$!.tar.gz!;
-                    $new_source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
-
+                    $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
+                    $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
                 }
 
                 # single attempt
-                $found = $self->_fetch($new_source);
+                $found = $self->_fetch($source);
             }
 
-            croak "Unable to download source: $new_source" unless $found;
+            croak "Unable to download source: $source" unless $found;
 
             # recompress if needed
             $found = _bzme($found) if $need_bzme;
-
         }
 
         if ($self->{_old_source_callback}) {
