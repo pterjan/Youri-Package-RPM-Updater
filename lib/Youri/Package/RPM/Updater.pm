@@ -611,7 +611,7 @@ sub build_from_spec {
 
         foreach my $new_source (@new_sources) {
 
-            my $found;
+            my ($found, $need_bzme);
 
             # Sourceforge: attempt different mirrors
             if ($new_source =~ m!http://prdownloads.sourceforge.net!) {
@@ -622,13 +622,18 @@ sub build_from_spec {
                     last if $found;
                 }
             } else {
-                # GNOME: add the major version to the URL automatically
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                # is rewritten in
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
                 if ($new_source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                    # GNOME: add the major version to the URL automatically
+                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                    # is rewritten in
+                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
                     (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
                     $new_source =~ s!(.*/)(.*)!$1$major/$2!;
+                } elsif ($new_source =~ m!(search|ftp)\.(perl|cpan)\.org/!) {
+                    # CPAN: force http and tar.gz
+                    $need_bzme = $new_source =~ s!\.tar\.bz2$!.tar.gz!;
+                    $new_source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
+
                 }
 
                 # single attempt
@@ -636,6 +641,9 @@ sub build_from_spec {
             }
 
             croak "Unable to download source: $new_source" unless $found;
+
+            # recompress if needed
+            system("bzme -f -F $found") if $need_bzme;
 
         }
 
