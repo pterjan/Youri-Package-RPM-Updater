@@ -643,7 +643,7 @@ sub build_from_spec {
             croak "Unable to download source: $new_source" unless $found;
 
             # recompress if needed
-            system("bzme -f -F $found") if $need_bzme;
+            $found = _bzme($found) if $need_bzme;
 
         }
 
@@ -766,8 +766,7 @@ sub _fetch_tarball {
                 if $self->{_verbose};
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
-                system("bzme -f -F $file");
-                $file =~ s/$extension$/\.tar\.bz2/;
+                $file = _bzme($file);
                 last;
             }
         }
@@ -878,6 +877,15 @@ sub _get_callback {
         if $@;
 
     return $sub;
+}
+
+sub _bzme {
+    my ($file) = @_;
+
+    system("bzme -f -F $file");
+    $file =~ s/\.(?:tar\.gz|tgz|zip)$/.tar.bz2/;
+
+    return $file;
 }
 
 __END__
