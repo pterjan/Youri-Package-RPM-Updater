@@ -242,6 +242,10 @@ list of changelog entries (default: empty).
 
 list of directories containing source packages (default: empty).
 
+=item timeout $timeout
+
+timeout for file downloads (default: 10)
+
 =back
 
 =cut
@@ -316,6 +320,8 @@ sub new {
             $options{build_binaries}    || 1,
         _release_suffix    =>
             $options{release_suffix}    || undef,
+        _timeout           =>
+            $options{timeout}           || 10,
         _changelog_entries =>
             $options{changelog_entries} || [],
         _srpm_dirs         =>
@@ -734,6 +740,7 @@ sub _fetch_tarball {
     print "attempting to download $url\n" if $self->{_verbose};
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
+    $agent->timeout($self->{_timeout});
 
     my $file = $self->_fetch_potential_tarball($agent, $url);
 
