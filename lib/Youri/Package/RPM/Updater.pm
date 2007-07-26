@@ -629,7 +629,7 @@ sub build_from_spec {
                     # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
                     (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
                     $new_source =~ s!(.*/)(.*)!$1$major/$2!;
-                } elsif ($new_source =~ m!(search|ftp)\.(perl|cpan)\.org/!) {
+                } elsif ($new_source =~ m!\w+\.(perl|cpan)\.org/!) {
                     # CPAN: force http and tar.gz
                     $need_bzme = $new_source =~ s!\.tar\.bz2$!.tar.gz!;
                     $new_source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
