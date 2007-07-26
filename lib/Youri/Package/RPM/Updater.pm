@@ -423,6 +423,10 @@ sub build_from_spec {
     my $old_version = $header->tag('version');
     my $old_release = $header->tag('release');
     my $new_release = $options{release};
+
+    # abort immediatly if already to new version
+    croak "No update neeeded, already at version $new_version\n"
+        if $old_version eq $new_version;
     
     # keep track of initial sources if needed for comparaison
     my (@sources_before, @sources_after);
