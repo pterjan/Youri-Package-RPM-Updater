@@ -26,3 +26,8 @@
 	for mismatch between software and package version
 	* allow local perl file expression/callback, in addition to global
 	ones
+
+2007-07-26 Guillaume Rousse <guillomovitch@zarb.org> 0.3.1
+	* configurable timeout
+	* CPAN specific download optimizations
+	* abort immediatly if already up to date
