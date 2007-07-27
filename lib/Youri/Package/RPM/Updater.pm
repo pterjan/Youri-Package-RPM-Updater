@@ -104,7 +104,7 @@ use SVN::Client;
 use File::Temp qw/tempdir/;
 use File::Temp qw/tempdir/;
 use RPM4;
-use version; our $VERSION = qv('0.3.1');
+use version; our $VERSION = qv('0.3.2');
 
 # add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
 # http://jabberstudio.org/files/ejogger/

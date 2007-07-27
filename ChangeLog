@@ -31,3 +31,7 @@
 	* configurable timeout
 	* CPAN specific download optimizations
 	* abort immediatly if already up to date
+
+2007-07-28 Guillaume Rousse <guillomovitch@zarb.org> 0.3.2
+	* add application/octet-stream as a valid content type
+	* fix source filename change with CPAN optimization
