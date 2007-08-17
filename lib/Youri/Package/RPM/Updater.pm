@@ -766,8 +766,7 @@ sub _fetch_tarball {
                 if $self->{_verbose};
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
-                system("bzme -f -F $file");
-                $file =~ s/$extension$/\.tar\.bz2/;
+                $file = _bzme($file);
                 last;
             }
         }
@@ -791,7 +790,7 @@ sub _fetch_potential_tarball {
         # check content type
         my $type = $response->header('Content-Type');
         print "content-type: $type\n" if $self->{_verbose} > 1;
-        if ($type =~ m!^application/x-(tar|gz|gzip|bz2|bzip2)$!) {
+        if ($type =~ m!^application/(?:x-(?:tar|gz|bz2|bzip2)|octet-stream)$!) {
             return $dest;
         } else {
             # wrong type
