@@ -485,12 +485,12 @@ sub build_from_spec {
                 !$release_updated         && # not already done
                 $line =~ /^
                 (
-                    \%define\s+release\s+ # defined as macro
+                    \%define\s+rel(:?ease)?\s+ # defined as macro
                 |
-                    (?i)Release:\s+       # defined as tag
+                    (?i)Release:\s+            # defined as tag
                 )
-                (\S+(?:\s+\S+)*)          # definition
-                \s*                       # trailing spaces
+                (\S+(?:\s+\S+)*)               # definition
+                \s*                            # trailing spaces
                 $/ox
             ) {
                 my ($directive, $definition) = ($1, $2);
