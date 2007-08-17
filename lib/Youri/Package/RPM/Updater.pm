@@ -104,7 +104,7 @@ use SVN::Client;
 use File::Temp qw/tempdir/;
 use File::Temp qw/tempdir/;
 use RPM4;
-use version; our $VERSION = qv('0.3.0');
+use version; our $VERSION = qv('0.3.2');
 
 # add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
 # http://jabberstudio.org/files/ejogger/
@@ -242,6 +242,10 @@ list of changelog entries (default: empty).
 
 list of directories containing source packages (default: empty).
 
+=item timeout $timeout
+
+timeout for file downloads (default: 10)
+
 =back
 
 =cut
@@ -316,6 +320,8 @@ sub new {
             $options{build_binaries}    || 1,
         _release_suffix    =>
             $options{release_suffix}    || undef,
+        _timeout           =>
+            $options{timeout}           || 10,
         _changelog_entries =>
             $options{changelog_entries} || [],
         _srpm_dirs         =>
@@ -417,6 +423,19 @@ sub build_from_spec {
     my $old_version = $header->tag('version');
     my $old_release = $header->tag('release');
     my $new_release = $options{release};
+    
+    # keep track of initial sources if needed for comparaison
+    my (@sources_before, @sources_after);
+    if (
+        $new_version     && # new version
+        $self->{_download}
+    ) {
+        @sources_before = $self->_get_sources($spec, $header);
+    }
+
+    # abort immediatly if already to new version
+    croak "No update neeeded, already at version $new_version\n"
+        if $old_version eq $new_version;
     
     # keep track of initial sources if needed for comparaison
     my (@sources_before, @sources_after);
@@ -734,6 +753,7 @@ sub _fetch_tarball {
     print "attempting to download $url\n" if $self->{_verbose};
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
+    $agent->timeout($self->{_timeout});
 
     my $file = $self->_fetch_potential_tarball($agent, $url);
 
@@ -747,8 +767,7 @@ sub _fetch_tarball {
                 if $self->{_verbose};
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
-                system("bzme -f -F $file");
-                $file =~ s/$extension$/\.tar\.bz2/;
+                $file = _bzme($file);
                 last;
             }
         }
@@ -772,7 +791,7 @@ sub _fetch_potential_tarball {
         # check content type
         my $type = $response->header('Content-Type');
         print "content-type: $type\n" if $self->{_verbose} > 1;
-        if ($type =~ m!^application/x-(tar|gz|gzip|bz2|bzip2)$!) {
+        if ($type =~ m!^application/(?:x-(?:tar|gz|bz2|bzip2)|octet-stream)$!) {
             return $dest;
         } else {
             # wrong type
