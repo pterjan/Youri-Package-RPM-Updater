@@ -485,7 +485,7 @@ sub build_from_spec {
                 !$release_updated         && # not already done
                 $line =~ /^
                 (
-                    \%define\s+rel(:?ease)?\s+ # defined as macro
+                    \%define\s+rel(?:ease)?\s+ # defined as macro
                 |
                     (?i)Release:\s+            # defined as tag
                 )
