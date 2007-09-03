@@ -461,72 +461,27 @@ sub build_from_spec {
         my $spec;
         my ($version_updated, $release_updated, $changelog_updated);
         while (my $line = <$in>) {
-            if ($self->{_update_revision} &&
-                $new_version               && # version change needed
-                !$version_updated          && # not already done
-                $line =~ /^
-                    (
-                        \%define\s+version\s+ # defined as macro
-                    |
-                        (?i)Version:\s+       # defined as tag
-                    )
-                    (\S+(?:\s+\S+)*)          # definition
-                    \s*                       # trailing spaces
-                $/ox
+            if ($self->{_update_revision} && # update required
+                $new_version              && # version change needed
+                !$version_updated            # not already done
             ) {
-                my ($directive, $definition) = ($1, $2);
-                $line = $directive . $new_version . "\n";
+                my ($directive, $value) = $self->_extract_version($line);
+
+                $new_version = $value;
+                $line = $directive . $value . "\n";
 
                 # just to skip test for next lines
                 $version_updated = 1;
             }
 
-            if ($self->{_update_revision} &&
-                !$release_updated         && # not already done
-                $line =~ /^
-                (
-                    \%define\s+rel(?:ease)?\s+ # defined as macro
-                |
-                    (?i)Release:\s+            # defined as tag
-                )
-                (\S+(?:\s+\S+)*)               # definition
-                \s*                            # trailing spaces
-                $/ox
+            if ($self->{_update_revision} && # update required
+                !$release_updated            # not already done
             ) {
-                my ($directive, $definition) = ($1, $2);
+                my ($directive, $value) = $self->_extract_release($line, $new_version, $new_release);
+                next unless $directive && $value;
 
-                if (! $new_release) {
-                    # if not explicit release given, try to compute it
-                    my ($macro, $value) = $definition =~ /^(%\w+\s+)?(.*)$/;
-
-                    croak "Unable to extract release value from definition '$definition'"
-                        unless $value;
-
-                    my ($prefix, $number, $suffix); 
-                    if ($new_version) {
-                        $number = 1;
-                    } else {
-                        # optional suffix from configuration
-                        my $dist_suffix = $self->{_release_suffix};
-
-                        ($prefix, $number, $suffix) =
-                            $value =~ /^(.*?)(\d+)(\Q$dist_suffix\E)?$/;
-
-                        croak "Unable to extract release number from value '$value'"
-                            unless $number;
-
-                        $number++;
-                    }
-
-                    $new_release = 
-                        ($macro ? $macro : "") .
-                        ($prefix ? $prefix : "") .
-                        $number .
-                        ($suffix ? $suffix : "");
-
-                }
-
-                $line = $directive . $new_release . "\n";
+                $new_release = $value;
+                $line = $directive . $value . "\n";
 
                 # just to skip test for next lines
                 $release_updated = 1;
@@ -886,6 +841,74 @@ sub _bzme {
     $file =~ s/\.(?:tar\.gz|tgz|zip)$/.tar.bz2/;
 
     return $file;
+}
+
+sub _extract_version {
+    my ($self, $line) = @_;
+
+    return unless $line =~ /^
+        (
+            \%define\s+version\s+ # defined as macro
+        |
+            (?i)Version:\s+       # defined as tag
+        )
+        (\S+(?:\s+\S+)*)          # definition
+        \s*                       # trailing spaces
+    $/ox;
+
+    my ($directive, $value) = ($1, $2);
+
+    return ($directive, $value);
+}
+sub _extract_release {
+    my ($self, $line, $new_version, $new_release) = @_;
+
+    return unless $line =~ /^
+    (
+        \%define\s+rel(?:ease)?\s+ # defined as macro
+    |
+        (?i)Release:\s+            # defined as tag
+    )
+    (\S+(?:\s+\S+)*)               # definition
+    \s*                            # trailing spaces
+    $/ox;
+
+    my ($directive, $value) = ($1, $2);
+
+    if (! $new_release) {
+        # if not explicit release given, try to compute it
+        my ($macro_name, $macro_value) = $value =~ /^(%\w+\s+)?(.*)$/;
+
+        croak "Unable to extract release value from value '$value'"
+            unless $macro_value;
+
+        my ($prefix, $number, $suffix); 
+        if ($new_version) {
+            $number = 1;
+        } else {
+            # optional suffix from configuration
+            my $dist_suffix = $self->{_release_suffix};
+
+            ($prefix, $number, $suffix) =
+                $macro_value =~ /^(.*?)(\d+)(\Q$dist_suffix\E)?$/;
+
+            croak "Unable to extract release number from value '$macro_value'"
+                unless $number;
+
+            $number++;
+        }
+
+        $value = 
+            ($macro_name ? $macro_name : "") .
+            ($prefix ? $prefix : "") .
+            $number .
+            ($suffix ? $suffix : "");
+
+    } else {
+        $value = $new_release;
+    }
+
+    return ($directive, $value);
 }
 
 __END__
