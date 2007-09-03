@@ -465,26 +465,23 @@ sub build_from_spec {
                 $new_version              && # version change needed
                 !$version_updated            # not already done
             ) {
-                my ($directive, $value) = $self->_extract_version($line);
-
-                $new_version = $value;
-                $line = $directive . $value . "\n";
-
-                # just to skip test for next lines
-                $version_updated = 1;
+                my ($directive, $value) = _get_new_version($line, $new_version);
+                if ($directive && $value) {
+                    $line = $directive . $value . "\n";
+                    $new_version = $value;
+                    $version_updated = 1;
+                }
             }
 
             if ($self->{_update_revision} && # update required
                 !$release_updated            # not already done
             ) {
-                my ($directive, $value) = $self->_extract_release($line, $new_version, $new_release);
-                next unless $directive && $value;
-
-                $new_release = $value;
-                $line = $directive . $value . "\n";
-
-                # just to skip test for next lines
-                $release_updated = 1;
+                my ($directive, $value) = _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
+                if ($directive && $value) {
+                    $line = $directive . $value . "\n";
+                    $new_release = $value;
+                    $release_updated = 1;
+                }
             }
 
             # apply global and local callbacks if any
@@ -843,8 +840,8 @@ sub _bzme {
     return $file;
 }
 
-sub _extract_version {
-    my ($self, $line) = @_;
+sub _get_new_version {
+    my ($line, $new_version) = @_;
 
     return unless $line =~ /^
         (
@@ -858,10 +855,14 @@ sub _extract_version {
 
     my ($directive, $value) = ($1, $2);
 
+    if ($new_version) {
+        $value = $new_version;
+    }
+
     return ($directive, $value);
 }
-sub _extract_release {
-    my ($self, $line, $new_version, $new_release) = @_;
+sub _get_new_release {
+    my ($line, $new_version, $new_release, $release_suffix) = @_;
 
     return unless $line =~ /^
     (
@@ -875,7 +876,9 @@ sub _extract_release {
 
     my ($directive, $value) = ($1, $2);
 
-    if (! $new_release) {
+    if ($new_release) {
+        $value = $new_release;
+    } else {
         # if not explicit release given, try to compute it
         my ($macro_name, $macro_value) = $value =~ /^(%\w+\s+)?(.*)$/;
 
@@ -887,10 +890,8 @@ sub _extract_release {
             $number = 1;
         } else {
             # optional suffix from configuration
-            my $dist_suffix = $self->{_release_suffix};
-
             ($prefix, $number, $suffix) =
-                $macro_value =~ /^(.*?)(\d+)(\Q$dist_suffix\E)?$/;
+                $macro_value =~ /^(.*?)(\d+)(\Q$release_suffix\E)?$/;
 
             croak "Unable to extract release number from value '$macro_value'"
                 unless $number;
@@ -904,8 +905,6 @@ sub _extract_release {
             $number .
             ($suffix ? $suffix : "");
 
-    } else {
-        $value = $new_release;
     }
 
     return ($directive, $value);
