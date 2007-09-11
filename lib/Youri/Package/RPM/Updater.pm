@@ -426,7 +426,7 @@ sub build_from_spec {
 
     # abort immediatly if old version >= new version
     croak "No update neeeded, already at version $old_version\n"
-        if RPM4::rpmvercmp($old_version, $new_version) >= 0;
+        if $new_version && RPM4::rpmvercmp($old_version, $new_version) >= 0;
     
     # keep track of initial sources if needed for comparaison
     my (@sources_before, @sources_after);
