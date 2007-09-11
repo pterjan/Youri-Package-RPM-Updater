@@ -40,7 +40,7 @@ foreach my $test (@version_tests) {
 
 foreach my $test (@release_tests) {
     is_deeply(
-       [ Youri::Package::RPM::Updater::_extract_release($test->[0]) ],
+       [ Youri::Package::RPM::Updater::_get_new_release($test->[0]) ],
        [ $test->[1], $test->[2] ],
        $test->[3],
    );
