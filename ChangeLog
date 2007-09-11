@@ -36,7 +36,7 @@
 	* add application/octet-stream as a valid content type
 	* fix source filename change with CPAN optimization
 
-2007-08-29 Guillaume Rousse <guillomovitch@zarb.org> 0.3.3
+2007-08-11 Guillaume Rousse <guillomovitch@zarb.org> 0.3.3
 	* re-add forgotten x-gzip as a valid content type
 	* allow %rel as release macro too
 	* segregate parsing code in methods, to make testing easier
