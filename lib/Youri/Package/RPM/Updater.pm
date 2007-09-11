@@ -395,6 +395,7 @@ sub build_from_source {
     my ($self, $src_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
+    RPM4::setverbosity(0);
     my ($spec_file) = RPM4::installsrpm($src_file);
 
     croak "Unable to install source package $src_file, aborting"
