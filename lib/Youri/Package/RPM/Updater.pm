@@ -514,14 +514,13 @@ sub build_from_spec {
                 }
 
                 my $header = RPM4::expand(
-                    DateTime->now()->strftime('%a %b %d %Y') . ' ' .
-                    $self->_get_packager() . ' ' .
-                    (
-                        $header->hastag('epoch') ?
-                            $header->tag('epoch') . ':' :
-                            ''
-                    ) .
-                    $new_version . '-' .
+                    DateTime->now()->strftime('%a %b %d %Y') .
+                    ' ' .
+                    $self->_get_packager() .
+                    ' ' .
+                    ($header->tag('epoch') ? $header->tag('epoch') . ':' : '') .
+                    ($new_version ? $new_version : $old_version) .
+                    '-' .
                     $new_release
                 );
 
@@ -891,8 +890,10 @@ sub _get_new_release {
             $number = 1;
         } else {
             # optional suffix from configuration
+            $release_suffix = $release_suffix ?
+                quotemeta($release_suffix) : '';
             ($prefix, $number, $suffix) =
-                $macro_value =~ /^(.*?)(\d+)(\Q$release_suffix\E)?$/;
+                $macro_value =~ /^(.*?)(\d+)($release_suffix)?$/;
 
             croak "Unable to extract release number from value '$macro_value'"
                 unless $number;
