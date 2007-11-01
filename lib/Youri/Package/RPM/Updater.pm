@@ -621,10 +621,20 @@ sub build_from_spec {
     if ($self->{_build_source} || $self->{_build_binary}) {
 
         if ($self->{_build_requires_callback}) {
-            my @requires = $header->tag('requires');
-            if (@requires) {
-                print "managing build dependencies : @requires\n"
-                    if $self->{_verbose};
+            print "managing build dependencies\n"
+                if $self->{_verbose};
+
+            my $db = RPM4::Transaction->new();
+            $db->transadd($header, "", 0);
+            $db->transcheck();
+            my $pbs = $db->transpbs();
+     
+            if ($pbs) {
+                my @requires;
+                $pbs->init();
+                while($pbs->hasnext()) {
+                    push(@requires, $pbs->problem());
+                }
                 $self->{_build_requires_callback}->(@requires);
             }
         }
