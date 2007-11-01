@@ -633,7 +633,8 @@ sub build_from_spec {
                 my @requires;
                 $pbs->init();
                 while($pbs->hasnext()) {
-                    push(@requires, $pbs->problem());
+                    my ($require) = $pbs->problem() =~ /(\S+) is needed by \S+/;
+                    push(@requires, $require);
                 }
                 $self->{_build_requires_callback}->(@requires);
             }
