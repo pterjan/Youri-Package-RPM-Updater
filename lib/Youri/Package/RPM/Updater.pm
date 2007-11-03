@@ -9,9 +9,9 @@ Youri::Package::RPM::Updater - Update RPM packages
 =head1 SYNOPSIS
 
     my $updater = Youri::Package::RPM::Updater->new();
-    $updater->build_from_source('foo-1.0-1.src.rpm', '2.0');
-    $updater->build_from_spec('foo.spec', '2.0');
-    $updater->build_from_repository('foo', '2.0');
+    $updater->update_from_source('foo-1.0-1.src.rpm', '2.0');
+    $updater->update_from_spec('foo.spec', '2.0');
+    $updater->update_from_repository('foo', '2.0');
 
 =head1 DESCRIPTION
 
@@ -254,7 +254,7 @@ sub new {
 
 =head1 INSTANCE METHODS
 
-=head2 build_from_repository($name, $version, %options)
+=head2 update_from_repository($name, $version, %options)
 
 Update package with name $name to version $version.
 
@@ -279,7 +279,7 @@ perl expression (or list of expressions) to evaluate for each spec file line
 
 =cut
 
-sub build_from_repository {
+sub update_from_repository {
     my ($self, $name, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
     my $src_file;
@@ -291,18 +291,18 @@ sub build_from_repository {
 
     croak "No source available for package $name, aborting" unless $src_file;
 
-    $self->build_from_source($src_file, $new_version, %options);
+    $self->update_from_source($src_file, $new_version, %options);
 }
 
-=head2 build_from_source($source, $version, %options)
+=head2 update_from_source($source, $version, %options)
 
 Update package with source file $source to version $version.
 
-See build_from_repository() for available options.
+See update_from_repository() for available options.
 
 =cut
 
-sub build_from_source {
+sub update_from_source {
     my ($self, $src_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
@@ -312,18 +312,18 @@ sub build_from_source {
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
 
-    $self->build_from_spec($spec_file, $new_version, %options);
+    $self->update_from_spec($spec_file, $new_version, %options);
 }
 
-=head2 build_from_spec($spec, $version, %options)
+=head2 update_from_spec($spec, $version, %options)
 
 Update package with spec file $spec to version $version.
 
-See build_from_repository() for available options.
+See update_from_repository() for available options.
 
 =cut
 
-sub build_from_spec {
+sub update_from_spec {
     my ($self, $spec_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
