@@ -4,7 +4,7 @@ package Youri::Package::RPM::Updater;
 
 =head1 NAME
 
-Youri::Package::RPM::Updater - Update RPM packages automatically
+Youri::Package::RPM::Updater - Update RPM packages
 
 =head1 SYNOPSIS
 
@@ -15,10 +15,9 @@ Youri::Package::RPM::Updater - Update RPM packages automatically
 
 =head1 DESCRIPTION
 
-This module automatises rpm package building. When given an explicit new
-version, it downloads new sources automatically, updates the spec file and
-builds a new version. When not given a new version, it just updates the spec
-file a builds a new release.
+This module updates rpm packages. When given an explicit new version, it
+updates the spec file, and downloads new sources automatically. When not given
+a new version, it just updates the spec file.
 
 Warning, not every spec file syntax is supported. If you use specific syntax,
 you'll have to ressort to additional processing with explicit perl expression
@@ -101,8 +100,6 @@ use File::Temp qw/tempdir/;
 use LWP::UserAgent;
 use String::ShellQuote;
 use SVN::Client;
-use File::Temp qw/tempdir/;
-use File::Temp qw/tempdir/;
 use RPM4;
 use version; our $VERSION = qv('0.3.4');
 
@@ -186,33 +183,6 @@ update spec file revision (release/history) (default: true).
 
 update spec file changelog (default: true).
 
-=item build_source true/false
-
-build source package (default: true).
-
-=item build_binaries true/false
-
-build binary packages (default: true).
-
-=item build_requires_callback $callback
-
-callback to execute before build, with build dependencies as argument (default:
-none).
-
-=item build_requires_command $command
-
-external command (or list of commands) to execute before build, with build
-dependencies as argument (default: none). Takes precedence over previous option.
-
-=item build_results_callback $callback
-
-callback to execute after build, with build packages as argument (default:
-none).
-
-=item build_results_command $command
-
-external command (or list of commands) to execute after build, with build packages as argument (default: none). Takes precedence over previous option.
-
 =item spec_line_callback $callback
 
 callback to execute as filter for each spec file line (default: none).
@@ -245,34 +215,6 @@ timeout for file downloads (default: 10)
 sub new {
     my ($class, %options) = @_;
 
-    if ($options{build_requires_command}) {
-        $options{build_requires_callback} = sub {
-            foreach my $command (
-                ref $options{build_requires_command} eq 'ARRAY' ?
-                    @{$options{build_requires_command}} :
-                    $options{build_requires_command}
-            ) {
-                # we can't use multiple args version of system here, as we
-                # can't assume given command is just a program name,
-                # as in 'sudo rurpmi' case
-                system($command . ' ' . shell_quote(@_));
-            }
-        }
-    }
-
-    if ($options{build_results_command}) {
-        $options{build_results_callback} = sub {
-            foreach my $command (
-                ref $options{build_results_command} eq 'ARRAY' ?
-                    @{$options{build_results_command}} :
-                    $options{build_results_command}
-            ) {
-                # same issue here
-                system($command . ' ' . shell_quote(@_));
-            }
-        }
-    }
-
     if ($options{spec_line_expression}) {
         $options{spec_line_callback} =
             _get_callback($options{spec_line_expression});
@@ -294,36 +236,17 @@ sub new {
     }
 
     my $self = bless {
-        _verbose           =>
-            $options{verbose}           || 0,
-        _topdir            => $topdir,
-        _sourcedir         => $sourcedir,
-        _options           =>
-            $options{options}           || '',
-        _download          =>
-            $options{download}          || 1,
-        _update_revision   =>
-            $options{update_revision}   || 1,
-        _update_changelog  =>
-            $options{update_changelog}  || 1,
-        _build_source      =>
-            $options{build_source}      || 1,
-        _build_binaries    =>
-            $options{build_binaries}    || 1,
-        _release_suffix    =>
-            $options{release_suffix}    || undef,
-        _timeout           =>
-            $options{timeout}           || 10,
-        _changelog_entries =>
-            $options{changelog_entries} || [],
-        _srpm_dirs         =>
-            $options{srpm_dirs}         || [],
-        _build_requires_callback =>
-            $options{build_requires_callback} || undef,
-        _build_results_callback  =>
-            $options{build_results_callback}  || undef,
-        _spec_line_callback      =>
-            $options{spec_line_callback}      || undef,
+        _topdir             => $topdir,
+        _sourcedir          => $sourcedir,
+        _verbose            => $options{verbose}            || 0,
+        _download           => $options{download}           || 1,
+        _update_revision    => $options{update_revision}    || 1,
+        _update_changelog   => $options{update_changelog}   || 1,
+        _release_suffix     => $options{release_suffix}     || undef,
+        _timeout            => $options{timeout}            || 10,
+        _changelog_entries  => $options{changelog_entries}  || [],
+        _srpm_dirs          => $options{srpm_dirs}          || [],
+        _spec_line_callback => $options{spec_line_callback} || undef,
     }, $class;
 
     return $self;
@@ -407,7 +330,6 @@ sub build_from_spec {
     my $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
 
-
     $self->_update_spec($spec_file, $spec, $new_version, %options) if
         $self->{_update_revision}      ||
         $self->{_update_changelog}     ||
@@ -422,9 +344,6 @@ sub build_from_spec {
         $new_version       &&
         $self->{_download};
 
-    $self->_build($spec_file, $spec, %options) if
-        $self->{_build_source} ||
-        $self->{_build_binary};
 }
 
 sub _update_spec {
@@ -574,75 +493,6 @@ sub _download_sources {
         $found = _bzme($found) if $need_bzme;
     }
 
-}
-
-sub _build {
-    my ($self, $spec_file, $spec, %options) = @_;
-
-    my $header = $spec->srcheader();
-
-    if ($self->{_build_requires_callback}) {
-        print "managing build dependencies\n"
-            if $self->{_verbose};
-
-        my $db = RPM4::Transaction->new();
-        $db->transadd($header, "", 0);
-        $db->transcheck();
-        my $pbs = $db->transpbs();
- 
-        if ($pbs) {
-            my @requires;
-            $pbs->init();
-            while($pbs->hasnext()) {
-                my ($require) = $pbs->problem() =~ /^
-                    (\S+) \s              # dependency
-                    (?:\S+ \s \S+ \s)?    # version
-                    is \s needed \s by \s # problem
-                    \S+                   # source package
-                    $/x;
-                next unless $require;
-                push(@requires, $require);
-            }
-            $self->{_build_requires_callback}->(@requires);
-        }
-    }
-
-    my $command = "rpm";
-    $command .= " --define '_topdir $self->{_topdir}'";
-    $command .= " --define '_sourcedir $self->{_sourcedir}'";
-
-    my @dirs = qw/builddir/;
-    if ($self->{_build_source} && $self->{_build_binaries}) {
-        $command .= " -ba $self->{_options} $spec_file";
-        push(@dirs, qw/rpmdir srcrpmdir/);
-    } elsif ($self->{_build_binaries}) {
-        $command .= " -bb $self->{_options} $spec_file";
-        push(@dirs, qw/rpmdir/);
-    } elsif ($self->{_build_source}) {
-        $command .= " -bs $self->{_options} --nodeps $spec_file";
-        push(@dirs, qw/srcrpmdir/);
-    }
-    $command .= " >/dev/null 2>&1" unless $self->{_verbose} > 1;
-
-    # check needed directories exist
-    foreach my $dir (map { RPM4::expand("\%_$_") } @dirs) {
-        next if -d $dir;
-        mkdir $dir or croak "Can't create directory $dir: $!\n";
-    }
-
-    my $result = system($command) ? 1 : 0;
-    croak("Build error\n")
-        unless $result == 0;
-
-    if ($self->{_build_results_callback}) {
-        my @results =
-            grep { -f $_ }
-            $spec->srcrpm(),
-            $spec->binrpm();
-        print "managing build results : @results\n"
-            if $self->{_verbose};
-        $self->{_build_results_callback}->(@results)
-    }
 }
 
 sub _fetch {
