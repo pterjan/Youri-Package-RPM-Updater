@@ -98,7 +98,6 @@ use File::Spec;
 use File::Path;
 use File::Temp qw/tempdir/;
 use LWP::UserAgent;
-use String::ShellQuote;
 use SVN::Client;
 use RPM4;
 use version; our $VERSION = qv('0.4.0');
