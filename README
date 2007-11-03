@@ -1,14 +1,13 @@
 Youri::Package::RPM::Updater
 ----------------------------
 
-Update RPM packages automatically.
+Update RPM packages
 
 Description
 -----------
-This module automatises rpm package building. When given an explicit new
-version, it downloads new sources automatically, updates the spec file and
-builds a new version. When not given a new version, it just updates the spec
-file a builds a new release.
+This module updates rpm packages. When given an explicit new version, it
+updates the spec file, and downloads new sources automatically. When not given
+a new version, it just updates the spec file.
 
 Installation
 ------------
