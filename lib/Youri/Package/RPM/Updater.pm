@@ -436,9 +436,12 @@ sub build_from_spec {
     $sources_after = [ $self->_get_sources($spec) ]
         if $new_version && $self->{_download};
 
-    $self->_download_sources($spec_file, $sources_before, $sources_after, $new_version, %options) if
-        $new_version        &&
-        $self->{_download};
+    $self->_download_sources(
+        $sources_before,
+        $sources_after,
+        $new_version,
+        %options
+    ) if $new_version && $self->{_download};
 
     $self->_build($spec_file, $spec, %options) if
         $self->{_build_source} ||
