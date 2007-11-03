@@ -222,14 +222,6 @@ callback to execute as filter for each spec file line (default: none).
 perl expression (or list of expressions) to evaluate for each spec file line
 (default: none). Takes precedence over previous option.
 
-=item new_source_callback $callback
-
-callback to execute before build for each new source (default: none).
-
-=item old_source_callback $callback
-
-callback to execute before build for each old source (default: none).
-
 =item release_suffix $suffix
 
 suffix appended to numerical value in release tag. (default: none).
@@ -332,10 +324,6 @@ sub new {
             $options{build_results_callback}  || undef,
         _spec_line_callback      =>
             $options{spec_line_callback}      || undef,
-        _new_source_callback     =>
-            $options{new_source_callback}     || undef,
-        _old_source_callback     =>
-            $options{old_source_callback}     || undef,
     }, $class;
 
     return $self;
@@ -419,9 +407,6 @@ sub build_from_spec {
     my $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
 
-    my ($sources_before, $sources_after);
-    $sources_before = [ $self->_get_sources($spec) ]
-        if $new_version && $self->{_download};
 
     $self->_update_spec($spec_file, $spec, $new_version, %options) if
         $self->{_update_revision}      ||
@@ -433,15 +418,9 @@ sub build_from_spec {
     $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse updated spec file $spec_file\n"; 
 
-    $sources_after = [ $self->_get_sources($spec) ]
-        if $new_version && $self->{_download};
-
-    $self->_download_sources(
-        $sources_before,
-        $sources_after,
-        $new_version,
-        %options
-    ) if $new_version && $self->{_download};
+    $self->_download_sources($spec, $new_version, %options) if
+        $new_version       &&
+        $self->{_download};
 
     $self->_build($spec_file, $spec, %options) if
         $self->{_build_source} ||
@@ -555,15 +534,9 @@ sub _update_spec {
 }
 
 sub _download_sources {
-    my ($self, $sources_before, $sources_after, $new_version, %options) = @_;
+    my ($self, $spec, $new_version, %options) = @_;
 
-    my %seen_before = map { $_ => 1 } @$sources_before;
-    my %seen_after  = map { $_ => 1 } @$sources_after;
-
-    my @new_sources = grep { !$seen_before{$_} } @$sources_after;
-    my @old_sources = grep { !$seen_after{$_} }  @$sources_before;
-
-    foreach my $new_source (@new_sources) {
+    foreach my $new_source ($self->_get_sources($spec)) {
 
         # work on a copy, so as to not mess with original list
         my $source = $new_source;
@@ -599,22 +572,6 @@ sub _download_sources {
 
         # recompress if needed
         $found = _bzme($found) if $need_bzme;
-    }
-
-    if ($self->{_old_source_callback}) {
-        foreach my $old_source (@old_sources) {
-            $self->{_old_source_callback}->(
-                $self->{_sourcedir} . '/' . basename($old_source)
-            );
-        }
-    }
-
-    if ($self->{_new_source_callback}) {
-        foreach my $new_source (@new_sources) {
-            $self->{_new_source_callback}->(
-                $self->{_sourcedir} . '/' . basename($new_source)
-            );
-        }
     }
 
 }
