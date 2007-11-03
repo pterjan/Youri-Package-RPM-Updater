@@ -594,7 +594,12 @@ sub _build {
             my @requires;
             $pbs->init();
             while($pbs->hasnext()) {
-                my ($require) = $pbs->problem() =~ /(\S+) is needed by \S+/;
+                my ($require) = $pbs->problem() =~ /^
+                    (\S+) \s              # dependency
+                    (?:\S+ \s \S+ \s)?    # version
+                    is \s needed \s by \s # problem
+                    \S+                   # source package
+                    $/x;
                 next unless $require;
                 push(@requires, $require);
             }
