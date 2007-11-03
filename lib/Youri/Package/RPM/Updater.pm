@@ -446,7 +446,9 @@ sub build_from_spec {
 }
 
 sub _update_spec {
-    my ($self, $spec_file, $header, $new_version, %options) = @_;
+    my ($self, $spec_file, $spec, $new_version, %options) = @_;
+
+    my $header = $spec->srcheader();
 
     # return if old version >= new version
     my $old_version = $header->tag('version');
@@ -463,7 +465,7 @@ sub _update_spec {
     open(my $in, '<', $spec_file)
         or croak "Unable to open file $spec_file: $!";
 
-    my $spec;
+    my $content;
     my ($version_updated, $release_updated, $changelog_updated);
     while (my $line = <$in>) {
         if ($self->{_update_revision} && # update required
@@ -496,7 +498,7 @@ sub _update_spec {
         $line = $options{spec_line_callback}->($line)
             if $options{spec_line_callback};
 
-        $spec .= $line;
+        $content .= $line;
 
         if ($self->{_update_changelog} &&
             !$changelog_updated        && # not already done
@@ -505,7 +507,7 @@ sub _update_spec {
             # skip until first changelog entry, as requested for bug #21389
             while ($line = <$in>) {
                 last if $line =~ /^\*/;
-                $spec .= $line;
+                $content .= $line;
             }
 
             my @entries = @{$self->{_changelog_entries}};
@@ -517,7 +519,7 @@ sub _update_spec {
                     'Rebuild';
             }
 
-            my $header = RPM4::expand(
+            my $title = RPM4::expand(
                 DateTime->now()->strftime('%a %b %d %Y') .
                 ' ' .
                 $self->_get_packager() .
@@ -528,14 +530,14 @@ sub _update_spec {
                 $new_release
             );
 
-            $spec .= "* $header\n";
+            $content .= "* $title\n";
             foreach my $entry (@entries) {
-                $spec .= "- $entry\n";
+                $content .= "- $entry\n";
             }
-            $spec .= "\n";
+            $content .= "\n";
 
             # don't forget kept line
-            $spec .= $line;
+            $content .= $line;
 
             # just to skip test for next lines
             $changelog_updated = 1;
@@ -545,7 +547,7 @@ sub _update_spec {
 
     open(my $out, '>', $spec_file)
         or croak "Unable to open file $spec_file: $!";
-    print $out $spec;
+    print $out $content;
     close($out);
 }
 
