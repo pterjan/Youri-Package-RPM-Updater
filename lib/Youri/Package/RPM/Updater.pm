@@ -713,7 +713,6 @@ sub _fetch_svn {
 sub _fetch_tarball {
     my ($self, $url) = @_;
 
-    print "attempting to download $url\n" if $self->{_verbose};
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
     $agent->timeout($self->{_timeout});
@@ -748,6 +747,7 @@ sub _fetch_potential_tarball {
     # don't attempt to download file if already present
     return $dest if -f $dest;
 
+    print "attempting to download $url\n" if $self->{_verbose};
     my $response = $agent->mirror($url, $dest);
     if ($response->is_success) {
         print "response: OK\n" if $self->{_verbose} > 1;
