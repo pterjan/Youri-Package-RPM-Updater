@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: /mirror/youri/soft/Repository/trunk/t/test.t 2314 2007-03-22T13:41:57.774951Z guillomovitch  $
+# $Id$
 
 use strict;
 use DateTime;
@@ -19,9 +19,8 @@ my $spec_file = dirname($0) . '/perl-File-HomeDir.spec';
 my $topdir = tempdir(CLEANUP => $ENV{TEST_DEBUG} ? 0 : 1);
 
 # force default packager
-RPM4::del_macro('packager');
-delete $ENV{EMAIL};
 my $packager = (getpwuid($<))[0];
+RPM4::add_macro("packager $packager");
 
 my $updater = Youri::Package::RPM::Updater->new();
 isa_ok($updater, 'Youri::Package::RPM::Updater');
