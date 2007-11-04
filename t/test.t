@@ -18,6 +18,11 @@ my $spec_file = dirname($0) . '/perl-File-HomeDir.spec';
 
 my $topdir = tempdir(CLEANUP => $ENV{TEST_DEBUG} ? 0 : 1);
 
+# force default packager
+RPM4::del_macro('packager');
+delete $ENV{EMAIL};
+my $packager = (getpwuid($<))[0];
+
 my $updater = Youri::Package::RPM::Updater->new(
     download => 0
 );
@@ -39,7 +44,7 @@ is($new_version_header->tag('release'), '1'   , 'new release');
 
 is(
     ($new_version_header->tag('changelogname'))[0],
-    'Guillaume Rousse <guillomovitch@zarb.org> 0.60-1',
+    "$packager 0.60-1",
     'new changelog entry author'
 );
 is(
@@ -71,7 +76,7 @@ is($new_release_header->tag('release'), '2'   , 'new release');
 
 is(
     ($new_release_header->tag('changelogname'))[0],
-    'Guillaume Rousse <guillomovitch@zarb.org> 0.58-2',
+    "$packager 0.58-2",
     'new changelog entry author'
 );
 is(
