@@ -522,8 +522,6 @@ sub _fetch_tarball {
         foreach my $extension (@EXTENSIONS) {
             my $alternate_url = $url;
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
-            print "attempting to download $alternate_url\n"
-                if $self->{_verbose};
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
                 $file = _bzme($file);
