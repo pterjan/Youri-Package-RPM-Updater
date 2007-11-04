@@ -43,3 +43,13 @@
 
 2007-11-01 Guillaume Rousse <guillomovitch@zarb.org> 0.3.4
 	* only invoke dependencies callback on missing ones, if any
+
+2007-11-04 Guillaume Rousse <guillomovitch@zarb.org> 0.4.0
+	* strip away everything related to building, in favor of new
+	  Youri::Package::RPM::Builder class
+	* consequently rename public methods from 'build' to 'update'
+	* make most options previously handled by constructor local
+	  to update methods
+	* no more reference to mandriva in default packager value
+	* enhanced test suite
+	* rename ChangeLog file to Changes
