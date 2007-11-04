@@ -592,10 +592,8 @@ sub _get_packager {
     my ($self) = @_;
     my $packager = RPM4::expand('%packager');
     if ($packager eq '%packager') {
-        my ($login, $gecos) = (getpwuid($<))[0,6];
-        $packager = $ENV{EMAIL} ?
-            "$login <$ENV{EMAIL}>" :
-            "$login <$login\@mandriva.com>";
+        my $login = (getpwuid($<))[0];
+        $packager = $ENV{EMAIL} ? "$login <$ENV{EMAIL}>" : $login;
     }
     return $packager;
 }
