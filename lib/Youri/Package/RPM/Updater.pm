@@ -204,7 +204,7 @@ sub new {
         _topdir             => $topdir,
         _sourcedir          => $sourcedir,
         _verbose            => defined $options{verbose}        ? 
-            $options{verbose}            : 1,
+            $options{verbose}            : 0,
         _release_suffix     => defined $options{release_suffix} ?
             $options{release_suffix}     : undef,
         _timeout            => defined $options{timeout}        ?
