@@ -150,7 +150,7 @@ my @EXTENSIONS = qw/
 
 Creates and returns a new MDV::RPM::Updater object.
 
-Avaiable options:
+Available options:
 
 =over
 
