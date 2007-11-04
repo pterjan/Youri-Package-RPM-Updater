@@ -166,9 +166,69 @@ rpm top-level directory (default: rpm %_topdir macro).
 
 rpm source directory (default: rpm %_sourcedir macro).
 
-=item options $options
+=item release_suffix $suffix
 
-rpm build options.
+suffix appended to numerical value in release tag. (default: none).
+
+=item srpm_dirs $dirs
+
+list of directories containing source packages (default: empty).
+
+=item timeout $timeout
+
+timeout for file downloads (default: 10)
+
+=back
+
+=cut
+
+sub new {
+    my ($class, %options) = @_;
+
+    # force internal rpmlib configuration
+    my ($topdir, $sourcedir);
+    if ($options{topdir}) {
+        $topdir = File::Spec->rel2abs($options{topdir});
+        RPM4::add_macro("_topdir $topdir");
+    } else {
+        $topdir = RPM4::expand('%_topdir');
+    }
+    if ($options{sourcedir}) {
+        $sourcedir = File::Spec->rel2abs($options{sourcedir});
+        RPM4::add_macro("_sourcedir $sourcedir");
+    } else {
+        $sourcedir = RPM4::expand('%_sourcedir');
+    }
+
+    my $self = bless {
+        _topdir             => $topdir,
+        _sourcedir          => $sourcedir,
+        _verbose            => defined $options{verbose}        ? 
+            $options{verbose}            : 1,
+        _release_suffix     => defined $options{release_suffix} ?
+            $options{release_suffix}     : undef,
+        _timeout            => defined $options{timeout}        ?
+            $options{timeout}            : 10,
+        _srpm_dirs          => defined $options{srpm_dirs}      ?
+            $options{srpm_dirs}          : undef,
+    }, $class;
+
+    return $self;
+}
+
+=head1 INSTANCE METHODS
+
+=head2 update_from_repository($name, $version, %options)
+
+Update package with name $name to version $version.
+
+Available options:
+
+=over
+
+=item release => $release
+
+Force package release, instead of computing it.
 
 =item download true/false
 
@@ -191,97 +251,9 @@ callback to execute as filter for each spec file line (default: none).
 perl expression (or list of expressions) to evaluate for each spec file line
 (default: none). Takes precedence over previous option.
 
-=item release_suffix $suffix
-
-suffix appended to numerical value in release tag. (default: none).
-
 =item changelog_entries $entries
 
 list of changelog entries (default: empty).
-
-=item srpm_dirs $dirs
-
-list of directories containing source packages (default: empty).
-
-=item timeout $timeout
-
-timeout for file downloads (default: 10)
-
-=back
-
-=cut
-
-sub new {
-    my ($class, %options) = @_;
-
-    if ($options{spec_line_expression}) {
-        $options{spec_line_callback} =
-            _get_callback($options{spec_line_expression});
-    }
-
-    # force internal rpmlib configuration
-    my ($topdir, $sourcedir);
-    if ($options{topdir}) {
-        $topdir = File::Spec->rel2abs($options{topdir});
-        RPM4::add_macro("_topdir $topdir");
-    } else {
-        $topdir = RPM4::expand('%_topdir');
-    }
-    if ($options{sourcedir}) {
-        $sourcedir = File::Spec->rel2abs($options{sourcedir});
-        RPM4::add_macro("_sourcedir $sourcedir");
-    } else {
-        $sourcedir = RPM4::expand('%_sourcedir');
-    }
-
-    my $self = bless {
-        _topdir             => $topdir,
-        _sourcedir          => $sourcedir,
-        _verbose            => defined $options{verbose}            ? 
-            $options{verbose}            : 1,
-        _download           => defined $options{download}           ?
-            $options{download}           : 1,
-        _update_revision    => defined $options{update_revision}    ?
-            $options{update_revision}    : 1,
-        _update_changelog   => defined $options{update_changelog}   ?
-            $options{update_changelog}   : 1,
-        _release_suffix     => defined $options{release_suffix}     ?
-            $options{release_suffix}     : undef,
-        _timeout            => defined $options{timeout}            ?
-            $options{timeout}            : 10,
-        _changelog_entries  => defined $options{changelog_entries}  ?
-            $options{changelog_entries}  : [],
-        _srpm_dirs          => defined $options{srpm_dirs}          ?
-            $options{srpm_dirs}          : [],
-        _spec_line_callback => defined $options{spec_line_callback} ?
-            $options{spec_line_callback} : undef,
-    }, $class;
-
-    return $self;
-}
-
-=head1 INSTANCE METHODS
-
-=head2 update_from_repository($name, $version, %options)
-
-Update package with name $name to version $version.
-
-Available options:
-
-=over
-
-=item release => $release
-
-Force package release, instead of computing it.
-
-=item spec_line_callback $callback
-
-callback to execute as filter for each spec file line (default: none).
-
-=item spec_line_expression $expression
-
-perl expression (or list of expressions) to evaluate for each spec file line
-(default: none). Takes precedence over previous option.
 
 =back
 
@@ -292,10 +264,12 @@ sub update_from_repository {
     croak "Not a class method" unless ref $self;
     my $src_file;
 
-    foreach my $srpm_dir (@{$self->{_srpm_dirs}}) {
-        $src_file = $self->_find_source_package($srpm_dir, $name);
-        last if $src_file;
-    }   
+    if ($self->{_srpm_dirs}) {
+        foreach my $srpm_dir (@{$self->{_srpm_dirs}}) {
+            $src_file = $self->_find_source_package($srpm_dir, $name);
+            last if $src_file;
+        }   
+    }
 
     croak "No source available for package $name, aborting" unless $src_file;
 
@@ -335,13 +309,16 @@ sub update_from_spec {
     my ($self, $spec_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
+    $options{download}         = 1 unless defined $options{download};
+    $options{update_revision}  = 1 unless defined $options{update_revision};
+    $options{update_changelog} = 1 unless defined $options{update_changelog};
+
     my $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
 
     $self->_update_spec($spec_file, $spec, $new_version, %options) if
-        $self->{_update_revision}      ||
-        $self->{_update_changelog}     ||
-        $self->{_spec_line_callback}   ||
+        $options{update_revision}      ||
+        $options{update_changelog}     ||
         $options{spec_line_callback}   ||
         $options{spec_line_expression};
 
@@ -350,8 +327,7 @@ sub update_from_spec {
 
     $self->_download_sources($spec, $new_version, %options) if
         $new_version       &&
-        $self->{_download};
-
+        $options{download};
 }
 
 sub _update_spec {
@@ -377,7 +353,7 @@ sub _update_spec {
     my $content;
     my ($version_updated, $release_updated, $changelog_updated);
     while (my $line = <$in>) {
-        if ($self->{_update_revision} && # update required
+        if ($options{update_revision} && # update required
             $new_version              && # version change needed
             !$version_updated            # not already done
         ) {
@@ -389,7 +365,7 @@ sub _update_spec {
             }
         }
 
-        if ($self->{_update_revision} && # update required
+        if ($options{update_revision} && # update required
             !$release_updated            # not already done
         ) {
             my ($directive, $value) = _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
@@ -401,15 +377,12 @@ sub _update_spec {
         }
 
         # apply global and local callbacks if any
-        $line = $self->{_spec_line_callback}->($line)
-            if $self->{_spec_line_callback};
-
         $line = $options{spec_line_callback}->($line)
             if $options{spec_line_callback};
 
         $content .= $line;
 
-        if ($self->{_update_changelog} &&
+        if ($options{update_changelog} &&
             !$changelog_updated        && # not already done
             $line =~ /^\%changelog/
         ) {
@@ -419,8 +392,9 @@ sub _update_spec {
                 $content .= $line;
             }
 
-            my @entries = @{$self->{_changelog_entries}};
-            if (@entries) {
+            my @entries;
+            if ($options{changelog_entries}) {
+                @entries = @{$options{changelog_entries}};
                 s/\%\%VERSION/$new_version/ foreach @entries;
             } else  {
                 @entries = $new_version ?

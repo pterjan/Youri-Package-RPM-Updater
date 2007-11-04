@@ -23,16 +23,14 @@ RPM4::del_macro('packager');
 delete $ENV{EMAIL};
 my $packager = (getpwuid($<))[0];
 
-my $updater = Youri::Package::RPM::Updater->new(
-    download => 0
-);
+my $updater = Youri::Package::RPM::Updater->new();
 isa_ok($updater, 'Youri::Package::RPM::Updater');
 
 my $new_version_spec_file = $topdir . '/new_version.spec';
 copy($spec_file, $new_version_spec_file);
 
 lives_ok {
-    $updater->update_from_spec($new_version_spec_file, '0.60');
+    $updater->update_from_spec($new_version_spec_file, '0.60', download => 0);
 } 'updating to a new version';
 
 my $new_version_spec = RPM4::Spec->new($new_version_spec_file, force => 1);
