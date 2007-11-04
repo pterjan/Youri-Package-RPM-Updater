@@ -6,7 +6,7 @@ use DateTime;
 use File::Basename;
 use File::Copy;
 use File::Temp qw/tempdir/;
-use Test::More tests => 16;
+use Test::More tests => 25;
 use Test::Exception;
 use RPM4;
 
@@ -89,3 +89,46 @@ is(
     '- Rebuild',
     'new changelog entry text'
 );
+
+my $no_changelog_spec_file = $topdir . '/no_changelog.spec';
+copy($spec_file, $no_changelog_spec_file);
+
+lives_ok {
+    $updater->update_from_spec($no_changelog_spec_file, undef, update_changelog => 0);
+} 'updating to a new release without updating changelog';
+
+my $no_changelog_spec = RPM4::Spec->new($no_changelog_spec_file, force => 1);
+isa_ok($no_changelog_spec, 'RPM4::Spec', 'spec syntax');
+my $no_changelog_header = $no_changelog_spec->srcheader();
+
+is(
+    ($no_changelog_header->tag('changelogname'))[0],
+    'Guillaume Rousse <guillomovitch@mandriva.org> 0.58-1',
+    'no new changelog entry (author)'
+);
+is(
+    DateTime->from_epoch(epoch =>
+        ($no_changelog_header->tag('changelogtime'))[0]
+    )->strftime('%a %b %d %Y'),
+    'Wed May 31 2006',
+    'no new changelog entry (date)'
+);
+is(
+    ($no_changelog_header->tag('changelogtext'))[0],
+    '- test release',
+    'no new changelog entry (text)'
+);
+
+my $no_revision_spec_file = $topdir . '/no_revision.spec';
+copy($spec_file, $no_revision_spec_file);
+
+lives_ok {
+    $updater->update_from_spec($no_revision_spec_file, undef, update_revision => 0);
+} 'updating to a new release without updating revision';
+
+my $no_revision_spec = RPM4::Spec->new($no_revision_spec_file, force => 1);
+isa_ok($no_revision_spec, 'RPM4::Spec', 'spec syntax');
+
+my $no_revision_header = $no_revision_spec->srcheader();
+is($no_revision_header->tag('version'), '0.58', 'new version');
+is($no_revision_header->tag('release'), '1'   , 'new release');
