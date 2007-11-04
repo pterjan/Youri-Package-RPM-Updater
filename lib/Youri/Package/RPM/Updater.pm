@@ -639,7 +639,7 @@ sub _get_callback {
 sub _bzme {
     my ($file) = @_;
 
-    system("bzme -f -F $file");
+    system("bzme -f -F $file >/dev/null 2>&1");
     $file =~ s/\.(?:tar\.gz|tgz|zip)$/.tar.bz2/;
 
     return $file;
