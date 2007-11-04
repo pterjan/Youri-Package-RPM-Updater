@@ -237,15 +237,24 @@ sub new {
     my $self = bless {
         _topdir             => $topdir,
         _sourcedir          => $sourcedir,
-        _verbose            => $options{verbose}            || 0,
-        _download           => $options{download}           || 1,
-        _update_revision    => $options{update_revision}    || 1,
-        _update_changelog   => $options{update_changelog}   || 1,
-        _release_suffix     => $options{release_suffix}     || undef,
-        _timeout            => $options{timeout}            || 10,
-        _changelog_entries  => $options{changelog_entries}  || [],
-        _srpm_dirs          => $options{srpm_dirs}          || [],
-        _spec_line_callback => $options{spec_line_callback} || undef,
+        _verbose            => defined $options{verbose}            ? 
+            $options{verbose}            : 1,
+        _download           => defined $options{download}           ?
+            $options{download}           : 1,
+        _update_revision    => defined $options{update_revision}    ?
+            $options{update_revision}    : 1,
+        _update_changelog   => defined $options{update_changelog}   ?
+            $options{update_changelog}   : 1,
+        _release_suffix     => defined $options{release_suffix}     ?
+            $options{release_suffix}     : undef,
+        _timeout            => defined $options{timeout}            ?
+            $options{timeout}            : 10,
+        _changelog_entries  => defined $options{changelog_entries}  ?
+            $options{changelog_entries}  : [],
+        _srpm_dirs          => defined $options{srpm_dirs}          ?
+            $options{srpm_dirs}          : [],
+        _spec_line_callback => defined $options{spec_line_callback} ?
+            $options{spec_line_callback} : undef,
     }, $class;
 
     return $self;

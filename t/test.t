@@ -2,10 +2,11 @@
 # $Id: /mirror/youri/soft/Repository/trunk/t/test.t 2314 2007-03-22T13:41:57.774951Z guillomovitch  $
 
 use strict;
+use DateTime;
 use File::Basename;
-use File::Path;
+use File::Copy;
 use File::Temp qw/tempdir/;
-use Test::More tests => 7;
+use Test::More tests => 16;
 use Test::Exception;
 use RPM4;
 
@@ -13,34 +14,75 @@ BEGIN {
     use_ok('Youri::Package::RPM::Updater');
 }
 
-my $source = dirname($0) . '/perl-File-HomeDir-0.58-1mdv2007.0.src.rpm';
+my $spec_file = dirname($0) . '/perl-File-HomeDir.spec';
 
-my $topdir = tempdir(cleanup => 1);
-foreach my $dir qw/BUILD SPECS SOURCES SRPMS RPMS tmp/ {
-    mkpath(["$topdir/$dir"]);
-};
-foreach my $arch qw/noarch/ {
-    mkpath(["$topdir/RPMS/$arch"]);
-};
+my $topdir = tempdir(CLEANUP => $ENV{TEST_DEBUG} ? 0 : 1);
 
 my $updater = Youri::Package::RPM::Updater->new(
-    topdir => $topdir,
-    options => '>/dev/null 2>&1'
+    download => 0
 );
 isa_ok($updater, 'Youri::Package::RPM::Updater');
 
+my $new_version_spec_file = $topdir . '/new_version.spec';
+copy($spec_file, $new_version_spec_file);
+
 lives_ok {
-    $updater->build_from_source($source);
-} 'building from source';
+    $updater->update_from_spec($new_version_spec_file, '0.60');
+} 'updating to a new version';
 
-my @binaries = <$topdir/RPMS/noarch/*.rpm>;
-is(scalar @binaries, 1, 'one binary package');
-my @sources = <$topdir/SRPMS/*.rpm>;
-is(scalar @sources, 1, 'one source package');
+my $new_version_spec = RPM4::Spec->new($new_version_spec_file, force => 1);
+isa_ok($new_version_spec, 'RPM4::Spec', 'spec syntax');
 
-my $package = RPM4::Header->new($sources[0]);
-isa_ok($package, 'RPM4::Header');
+my $new_version_header = $new_version_spec->srcheader();
+is($new_version_header->tag('version'), '0.60', 'new version');
+is($new_version_header->tag('release'), '1'   , 'new release');
 
-my $release = `rpm --eval '%mkrel 2'`;
-chomp $release;
-is($package->release(), $release, 'expected release value');
+is(
+    ($new_version_header->tag('changelogname'))[0],
+    'Guillaume Rousse <guillomovitch@zarb.org> 0.60-1',
+    'new changelog entry author'
+);
+is(
+    DateTime->from_epoch(epoch =>
+        ($new_version_header->tag('changelogtime'))[0]
+    )->strftime('%a %b %d %Y'),
+    DateTime->now()->strftime('%a %b %d %Y'),
+    'new changelog entry date'
+);
+is(
+    ($new_version_header->tag('changelogtext'))[0],
+    '- New version 0.60',
+    'new changelog entry text'
+);
+
+my $new_release_spec_file = $topdir . '/new_release.spec';
+copy($spec_file, $new_release_spec_file);
+
+lives_ok {
+    $updater->update_from_spec($new_release_spec_file);
+} 'updating to a new release';
+
+my $new_release_spec = RPM4::Spec->new($new_release_spec_file, force => 1);
+isa_ok($new_release_spec, 'RPM4::Spec', 'spec syntax');
+
+my $new_release_header = $new_release_spec->srcheader();
+is($new_release_header->tag('version'), '0.58', 'new version');
+is($new_release_header->tag('release'), '2'   , 'new release');
+
+is(
+    ($new_release_header->tag('changelogname'))[0],
+    'Guillaume Rousse <guillomovitch@zarb.org> 0.58-2',
+    'new changelog entry author'
+);
+is(
+    DateTime->from_epoch(epoch =>
+        ($new_release_header->tag('changelogtime'))[0]
+    )->strftime('%a %b %d %Y'),
+    DateTime->now()->strftime('%a %b %d %Y'),
+    'new changelog entry date'
+);
+is(
+    ($new_release_header->tag('changelogtext'))[0],
+    '- Rebuild',
+    'new changelog entry text'
+);
