@@ -44,7 +44,7 @@
 2007-11-01 Guillaume Rousse <guillomovitch@zarb.org> 0.3.4
 	* only invoke dependencies callback on missing ones, if any
 
-2007-11-04 Guillaume Rousse <guillomovitch@zarb.org> 0.4.0
+2007-11-17 Guillaume Rousse <guillomovitch@zarb.org> 0.4.0
 	* strip away everything related to building, in favor of new
 	  Youri::Package::RPM::Builder class
 	* consequently rename public methods from 'build' to 'update'
