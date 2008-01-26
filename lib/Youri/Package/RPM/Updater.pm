@@ -86,6 +86,33 @@ or indirect definition:
 
 are supported. Any more complex one is not.
 
+=head1 CONFIGURATION
+
+The system configuration file for this module is
+@sysconfdir@/youri/updater.conf. The user configuration file is
+$HOME/.youri/updater.conf. The last one has precendence on the first one.
+
+Those files are YAML files. The following directives can be configured:
+
+=over
+
+=item sites
+
+A list of transformations to compute source tarball URL for some sites. Each
+transformation is an hashref with two keys (from and to).
+
+=item sourceforge_mirrors
+
+A list of sourceforge mirrors to try successively when downloading
+the sources hosted on sourceforge.
+
+=item extensions
+
+A list of alternative tarball extensions to try successively when downloading
+the one given in spec file (usually bz2) fails.
+
+=end
+
 =cut
 
 use strict;
@@ -100,49 +127,8 @@ use File::Temp qw/tempdir/;
 use LWP::UserAgent;
 use SVN::Client;
 use RPM4;
+use Youri::Config;
 use version; our $VERSION = qv('0.4.0');
-
-# add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
-# http://jabberstudio.org/files/ejogger/
-# http://jabberstudio.org/projects/ejogger/project/view.php     
-my @SITES = (
-    {
-        from => 'http://(.*)\.(?:sourceforge|sf)\.net/?(.*)',
-        to   => 'http://prdownloads.sourceforge.net/$1/$2'
-    },
-    { # to test
-        from => 'https?://gna.org/projects/([^/]*)/(.*)',
-        to   => 'http://download.gna.org/$1/$2'
-    },
-    {
-        from => 'http://(.*)\.berlios.de/(.*)',
-        to   => 'http://download.berlios.de/$1/$2'
-    },
-    { # to test , and to merge with regular savanah ?
-        from => 'https?://savannah.nongnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.nongnu.org/download/$1/$2'
-    },
-    { # to test
-        from => 'https?://savannah.gnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.gnu.org/download/$1/$2'
-    },
-    {
-        from => 'http://search.cpan.org/dist/([^-]+)-.*',
-        to   => 'http://www.cpan.org/modules/by-module/$1/'
-    }
-);
-
-my @SF_MIRRORS = qw/
-    ovh
-    mesh
-    switch
-/;
-
-my @EXTENSIONS = qw/
-    .tar.gz
-    .tgz
-    .zip
-/;
 
 =head1 CLASS METHODS
 
@@ -200,7 +186,13 @@ sub new {
         $sourcedir = RPM4::expand('%_sourcedir');
     }
 
+    my $config = Youri::Config->new(
+        directories => [ "$ENV{HOME}/.youri", '@sysconfdir@/youri' ],
+        file => 'updater.conf',
+    );
+
     my $self = bless {
+        _config             => $config,
         _topdir             => $topdir,
         _sourcedir          => $sourcedir,
         _verbose            => defined $options{verbose}        ? 
@@ -445,7 +437,8 @@ sub _download_sources {
 
         # Sourceforge: attempt different mirrors
         if ($source =~ m!http://prdownloads.sourceforge.net!) {
-            foreach my $sf_mirror (@SF_MIRRORS) {
+            my $mirrors = $self->{_config}->get_param('sourceforge_mirrors');
+            foreach my $sf_mirror ($mirrors ? @{$mirrors} : ()) {
                 my $sf_source = $source;
                 $sf_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
                 $found = $self->_fetch_tarball($sf_source);
@@ -519,7 +512,8 @@ sub _fetch_tarball {
     # Mandriva policy implies to recompress sources, so if the one that was
     # just looked for was missing, check with other formats
     if (!$file and $url =~ /\.tar\.bz2$/) {
-        foreach my $extension (@EXTENSIONS) {
+        my $extensions = $self->{_config}->get_param('extensions');
+        foreach my $extension ($extensions ? @{$extensions} : ()) {
             my $alternate_url = $url;
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
@@ -599,7 +593,8 @@ sub _get_sources {
 
         my $url = $spec->srcheader()->tag('url');
 
-        foreach my $site (@SITES) {
+        my $sites = $self->{_config}->get_param('sites');
+        foreach my $site ($sites ? @{$sites} : ()) {
             # curiously, we need two level of quoting-evaluation here :(
             if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
                 last;
