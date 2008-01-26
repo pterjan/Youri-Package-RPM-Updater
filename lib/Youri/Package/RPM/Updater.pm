@@ -4,21 +4,20 @@ package Youri::Package::RPM::Updater;
 
 =head1 NAME
 
-Youri::Package::RPM::Updater - Update RPM packages automatically
+Youri::Package::RPM::Updater - Update RPM packages
 
 =head1 SYNOPSIS
 
     my $updater = Youri::Package::RPM::Updater->new();
-    $updater->build_from_source('foo-1.0-1.src.rpm', '2.0');
-    $updater->build_from_spec('foo.spec', '2.0');
-    $updater->build_from_repository('foo', '2.0');
+    $updater->update_from_source('foo-1.0-1.src.rpm', '2.0');
+    $updater->update_from_spec('foo.spec', '2.0');
+    $updater->update_from_repository('foo', '2.0');
 
 =head1 DESCRIPTION
 
-This module automatises rpm package building. When given an explicit new
-version, it downloads new sources automatically, updates the spec file and
-builds a new version. When not given a new version, it just updates the spec
-file a builds a new release.
+This module updates rpm packages. When given an explicit new version, it
+updates the spec file, and downloads new sources automatically. When not given
+a new version, it just updates the spec file.
 
 Warning, not every spec file syntax is supported. If you use specific syntax,
 you'll have to ressort to additional processing with explicit perl expression
@@ -87,6 +86,14 @@ or indirect definition:
 
 are supported. Any more complex one is not.
 
+=head1 CONFIGURATION
+
+The system configuration file for this module is
+@sysconfdir@/youri/updater.conf. The user configuration file is
+$HOME/.youri/updater.conf. The last one has precedence on the first one.
+
+=end
+
 =cut
 
 use strict;
@@ -99,54 +106,9 @@ use File::Spec;
 use File::Path;
 use File::Temp qw/tempdir/;
 use LWP::UserAgent;
-use String::ShellQuote;
 use SVN::Client;
-use File::Temp qw/tempdir/;
-use File::Temp qw/tempdir/;
 use RPM4;
 use version; our $VERSION = qv('0.3.4');
-
-# add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
-# http://jabberstudio.org/files/ejogger/
-# http://jabberstudio.org/projects/ejogger/project/view.php     
-my @SITES = (
-    {
-        from => 'http://(.*)\.(?:sourceforge|sf)\.net/?(.*)',
-        to   => 'http://prdownloads.sourceforge.net/$1/$2'
-    },
-    { # to test
-        from => 'https?://gna.org/projects/([^/]*)/(.*)',
-        to   => 'http://download.gna.org/$1/$2'
-    },
-    {
-        from => 'http://(.*)\.berlios.de/(.*)',
-        to   => 'http://download.berlios.de/$1/$2'
-    },
-    { # to test , and to merge with regular savanah ?
-        from => 'https?://savannah.nongnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.nongnu.org/download/$1/$2'
-    },
-    { # to test
-        from => 'https?://savannah.gnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.gnu.org/download/$1/$2'
-    },
-    {
-        from => 'http://search.cpan.org/dist/([^-]+)-.*',
-        to   => 'http://www.cpan.org/modules/by-module/$1/'
-    }
-);
-
-my @SF_MIRRORS = qw/
-    ovh
-    mesh
-    switch
-/;
-
-my @EXTENSIONS = qw/
-    .tar.gz
-    .tgz
-    .zip
-/;
 
 =head1 CLASS METHODS
 
@@ -154,7 +116,7 @@ my @EXTENSIONS = qw/
 
 Creates and returns a new MDV::RPM::Updater object.
 
-Avaiable options:
+Available options:
 
 =over
 
@@ -170,73 +132,9 @@ rpm top-level directory (default: rpm %_topdir macro).
 
 rpm source directory (default: rpm %_sourcedir macro).
 
-=item options $options
-
-rpm build options.
-
-=item download true/false
-
-download new sources (default: true).
-
-=item update_revision true/false
-
-update spec file revision (release/history) (default: true).
-
-=item update_changelog true/false
-
-update spec file changelog (default: true).
-
-=item build_source true/false
-
-build source package (default: true).
-
-=item build_binaries true/false
-
-build binary packages (default: true).
-
-=item build_requires_callback $callback
-
-callback to execute before build, with build dependencies as argument (default:
-none).
-
-=item build_requires_command $command
-
-external command (or list of commands) to execute before build, with build
-dependencies as argument (default: none). Takes precedence over previous option.
-
-=item build_results_callback $callback
-
-callback to execute after build, with build packages as argument (default:
-none).
-
-=item build_results_command $command
-
-external command (or list of commands) to execute after build, with build packages as argument (default: none). Takes precedence over previous option.
-
-=item spec_line_callback $callback
-
-callback to execute as filter for each spec file line (default: none).
-
-=item spec_line_expression $expression
-
-perl expression (or list of expressions) to evaluate for each spec file line
-(default: none). Takes precedence over previous option.
-
-=item new_source_callback $callback
-
-callback to execute before build for each new source (default: none).
-
-=item old_source_callback $callback
-
-callback to execute before build for each old source (default: none).
-
 =item release_suffix $suffix
 
 suffix appended to numerical value in release tag. (default: none).
-
-=item changelog_entries $entries
-
-list of changelog entries (default: empty).
 
 =item srpm_dirs $dirs
 
@@ -253,39 +151,6 @@ timeout for file downloads (default: 10)
 sub new {
     my ($class, %options) = @_;
 
-    if ($options{build_requires_command}) {
-        $options{build_requires_callback} = sub {
-            foreach my $command (
-                ref $options{build_requires_command} eq 'ARRAY' ?
-                    @{$options{build_requires_command}} :
-                    $options{build_requires_command}
-            ) {
-                # we can't use multiple args version of system here, as we
-                # can't assume given command is just a program name,
-                # as in 'sudo rurpmi' case
-                system($command . ' ' . shell_quote(@_));
-            }
-        }
-    }
-
-    if ($options{build_results_command}) {
-        $options{build_results_callback} = sub {
-            foreach my $command (
-                ref $options{build_results_command} eq 'ARRAY' ?
-                    @{$options{build_results_command}} :
-                    $options{build_results_command}
-            ) {
-                # same issue here
-                system($command . ' ' . shell_quote(@_));
-            }
-        }
-    }
-
-    if ($options{spec_line_expression}) {
-        $options{spec_line_callback} =
-            _get_callback($options{spec_line_expression});
-    }
-
     # force internal rpmlib configuration
     my ($topdir, $sourcedir);
     if ($options{topdir}) {
@@ -301,41 +166,23 @@ sub new {
         $sourcedir = RPM4::expand('%_sourcedir');
     }
 
+    my $config = Youri::Config->new(
+        directories => [ '@sysconfdir@/youri', "$ENV{HOME}/.youri"  ],
+        file => 'updater.conf',
+    );
+
     my $self = bless {
-        _verbose           =>
-            $options{verbose}           || 0,
-        _topdir            => $topdir,
-        _sourcedir         => $sourcedir,
-        _options           =>
-            $options{options}           || '',
-        _download          =>
-            $options{download}          || 1,
-        _update_revision   =>
-            $options{update_revision}   || 1,
-        _update_changelog  =>
-            $options{update_changelog}  || 1,
-        _build_source      =>
-            $options{build_source}      || 1,
-        _build_binaries    =>
-            $options{build_binaries}    || 1,
-        _release_suffix    =>
-            $options{release_suffix}    || undef,
-        _timeout           =>
-            $options{timeout}           || 10,
-        _changelog_entries =>
-            $options{changelog_entries} || [],
-        _srpm_dirs         =>
-            $options{srpm_dirs}         || [],
-        _build_requires_callback =>
-            $options{build_requires_callback} || undef,
-        _build_results_callback  =>
-            $options{build_results_callback}  || undef,
-        _spec_line_callback      =>
-            $options{spec_line_callback}      || undef,
-        _new_source_callback     =>
-            $options{new_source_callback}     || undef,
-        _old_source_callback     =>
-            $options{old_source_callback}     || undef,
+        _config             => $config,
+        _topdir             => $topdir,
+        _sourcedir          => $sourcedir,
+        _verbose            => defined $options{verbose}        ? 
+            $options{verbose}            : 0,
+        _release_suffix     => defined $options{release_suffix} ?
+            $options{release_suffix}     : undef,
+        _timeout            => defined $options{timeout}        ?
+            $options{timeout}            : 10,
+        _srpm_dirs          => defined $options{srpm_dirs}      ?
+            $options{srpm_dirs}          : undef,
     }, $class;
 
     return $self;
@@ -343,7 +190,7 @@ sub new {
 
 =head1 INSTANCE METHODS
 
-=head2 build_from_repository($name, $version, %options)
+=head2 update_from_repository($name, $version, %options)
 
 Update package with name $name to version $version.
 
@@ -355,6 +202,18 @@ Available options:
 
 Force package release, instead of computing it.
 
+=item download true/false
+
+download new sources (default: true).
+
+=item update_revision true/false
+
+update spec file revision (release/history) (default: true).
+
+=item update_changelog true/false
+
+update spec file changelog (default: true).
+
 =item spec_line_callback $callback
 
 callback to execute as filter for each spec file line (default: none).
@@ -364,34 +223,40 @@ callback to execute as filter for each spec file line (default: none).
 perl expression (or list of expressions) to evaluate for each spec file line
 (default: none). Takes precedence over previous option.
 
+=item changelog_entries $entries
+
+list of changelog entries (default: empty).
+
 =back
 
 =cut
 
-sub build_from_repository {
+sub update_from_repository {
     my ($self, $name, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
     my $src_file;
 
-    foreach my $srpm_dir (@{$self->{_srpm_dirs}}) {
-        $src_file = $self->_find_source_package($srpm_dir, $name);
-        last if $src_file;
-    }   
+    if ($self->{_srpm_dirs}) {
+        foreach my $srpm_dir (@{$self->{_srpm_dirs}}) {
+            $src_file = $self->_find_source_package($srpm_dir, $name);
+            last if $src_file;
+        }   
+    }
 
     croak "No source available for package $name, aborting" unless $src_file;
 
-    $self->build_from_source($src_file, $new_version, %options);
+    $self->update_from_source($src_file, $new_version, %options);
 }
 
-=head2 build_from_source($source, $version, %options)
+=head2 update_from_source($source, $version, %options)
 
 Update package with source file $source to version $version.
 
-See build_from_repository() for available options.
+See update_from_repository() for available options.
 
 =cut
 
-sub build_from_source {
+sub update_from_source {
     my ($self, $src_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
@@ -401,221 +266,183 @@ sub build_from_source {
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
 
-    $self->build_from_spec($spec_file, $new_version, %options);
+    $self->update_from_spec($spec_file, $new_version, %options);
 }
 
-=head2 build_from_spec($spec, $version, %options)
+=head2 update_from_spec($spec, $version, %options)
 
 Update package with spec file $spec to version $version.
 
-See build_from_repository() for available options.
+See update_from_repository() for available options.
 
 =cut
 
-sub build_from_spec {
+sub update_from_spec {
     my ($self, $spec_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
+    $options{download}         = 1 unless defined $options{download};
+    $options{update_revision}  = 1 unless defined $options{update_revision};
+    $options{update_changelog} = 1 unless defined $options{update_changelog};
+
     my $spec = RPM4::Spec->new($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
+
+    $self->_update_spec($spec_file, $spec, $new_version, %options) if
+        $options{update_revision}      ||
+        $options{update_changelog}     ||
+        $options{spec_line_callback}   ||
+        $options{spec_line_expression};
+
+    $spec = RPM4::Spec->new($spec_file, force => 1)
+        or croak "Unable to parse updated spec file $spec_file\n"; 
+
+    $self->_download_sources($spec, $new_version, %options) if
+        $new_version       &&
+        $options{download};
+}
+
+sub _update_spec {
+    my ($self, $spec_file, $spec, $new_version, %options) = @_;
+
     my $header = $spec->srcheader();
 
-    my $name        = $header->tag('name');
+    # return if old version >= new version
     my $old_version = $header->tag('version');
-    my $old_release = $header->tag('release');
+    return if $new_version && RPM4::rpmvercmp($old_version, $new_version) >= 0;
+
     my $new_release = $options{release};
-
-    # abort immediatly if old version >= new version
-    croak "No update neeeded, already at version $old_version\n"
-        if $new_version && RPM4::rpmvercmp($old_version, $new_version) >= 0;
-    
-    # keep track of initial sources if needed for comparaison
-    my (@sources_before, @sources_after);
-    if (
-        $new_version     && # new version
-        $self->{_download}
-    ) {
-        @sources_before = $self->_get_sources($spec, $header);
-    }
-
-    # handle everything dependant on new version/release
-    if ($self->{_verbose}) {
-        print $new_version ?
-            "building $name $new_version\n" :
-            "rebuilding $name\n";
-    }
+    my $epoch       = $header->tag('epoch');
 
     if ($options{spec_line_expression}) {
         $options{spec_line_callback} =
             _get_callback($options{spec_line_expression});
     }
 
-    # update spec file
-    if ($self->{_update_revision}    ||
-        $self->{_update_changelog}   ||
-        $self->{_spec_line_callback} ||
-        $options{spec_line_callback}
-    ) {
-        open(my $in, '<', $spec_file)
-            or croak "Unable to open file $spec_file: $!";
+    open(my $in, '<', $spec_file)
+        or croak "Unable to open file $spec_file: $!";
 
-        my $spec;
-        my ($version_updated, $release_updated, $changelog_updated);
-        while (my $line = <$in>) {
-            if ($self->{_update_revision} && # update required
-                $new_version              && # version change needed
-                !$version_updated            # not already done
-            ) {
-                my ($directive, $value) = _get_new_version($line, $new_version);
-                if ($directive && $value) {
-                    $line = $directive . $value . "\n";
-                    $new_version = $value;
-                    $version_updated = 1;
-                }
-            }
-
-            if ($self->{_update_revision} && # update required
-                !$release_updated            # not already done
-            ) {
-                my ($directive, $value) = _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
-                if ($directive && $value) {
-                    $line = $directive . $value . "\n";
-                    $new_release = $value;
-                    $release_updated = 1;
-                }
-            }
-
-            # apply global and local callbacks if any
-            $line = $self->{_spec_line_callback}->($line)
-                if $self->{_spec_line_callback};
-
-            $line = $options{spec_line_callback}->($line)
-                if $options{spec_line_callback};
-
-            $spec .= $line;
-
-            if ($self->{_update_changelog} &&
-                !$changelog_updated        && # not already done
-                $line =~ /^\%changelog/
-            ) {
-                # skip until first changelog entry, as requested for bug #21389
-                while ($line = <$in>) {
-                    last if $line =~ /^\*/;
-                    $spec .= $line;
-                }
-
-                my @entries = @{$self->{_changelog_entries}};
-                if (@entries) {
-                    s/\%\%VERSION/$new_version/ foreach @entries;
-                } else  {
-                    @entries = $new_version ?
-                        "New version $new_version" :
-                        'Rebuild';
-                }
-
-                my $header = RPM4::expand(
-                    DateTime->now()->strftime('%a %b %d %Y') .
-                    ' ' .
-                    $self->_get_packager() .
-                    ' ' .
-                    ($header->tag('epoch') ? $header->tag('epoch') . ':' : '') .
-                    ($new_version ? $new_version : $old_version) .
-                    '-' .
-                    $new_release
-                );
-
-                $spec .= "* $header\n";
-                foreach my $entry (@entries) {
-                    $spec .= "- $entry\n";
-                }
-                $spec .= "\n";
-
-                # don't forget kept line
-                $spec .= $line;
-
-                # just to skip test for next lines
-                $changelog_updated = 1;
+    my $content;
+    my ($version_updated, $release_updated, $changelog_updated);
+    while (my $line = <$in>) {
+        if ($options{update_revision} && # update required
+            $new_version              && # version change needed
+            !$version_updated            # not already done
+        ) {
+            my ($directive, $value) = _get_new_version($line, $new_version);
+            if ($directive && $value) {
+                $line = $directive . $value . "\n";
+                $new_version = $value;
+                $version_updated = 1;
             }
         }
-        close($in);
 
-        open(my $out, '>', $spec_file)
-            or croak "Unable to open file $spec_file: $!";
-        print $out $spec;
-        close($out);
+        if ($options{update_revision} && # update required
+            !$release_updated            # not already done
+        ) {
+            my ($directive, $value) = _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
+            if ($directive && $value) {
+                $line = $directive . $value . "\n";
+                $new_release = $value;
+                $release_updated = 1;
+            }
+        }
+
+        # apply global and local callbacks if any
+        $line = $options{spec_line_callback}->($line)
+            if $options{spec_line_callback};
+
+        $content .= $line;
+
+        if ($options{update_changelog} &&
+            !$changelog_updated        && # not already done
+            $line =~ /^\%changelog/
+        ) {
+            # skip until first changelog entry, as requested for bug #21389
+            while ($line = <$in>) {
+                last if $line =~ /^\*/;
+                $content .= $line;
+            }
+
+            my @entries;
+            if ($options{changelog_entries}) {
+                @entries = @{$options{changelog_entries}};
+                s/\%\%VERSION/$new_version/ foreach @entries;
+            } else  {
+                @entries = $new_version ?
+                    "New version $new_version" :
+                    'Rebuild';
+            }
+
+            my $title = RPM4::expand(
+                DateTime->now()->strftime('%a %b %d %Y') .
+                ' ' .
+                $self->_get_packager() .
+                ' ' .
+                ($epoch ? $epoch . ':' : '') .
+                ($new_version ? $new_version : $old_version) .
+                '-' .
+                $new_release
+            );
+
+            $content .= "* $title\n";
+            foreach my $entry (@entries) {
+                $content .= "- $entry\n";
+            }
+            $content .= "\n";
+
+            # don't forget kept line
+            $content .= $line;
+
+            # just to skip test for next lines
+            $changelog_updated = 1;
+        }
     }
+    close($in);
 
-    # download sources
-    if (
-        $new_version     && # new version
-        $self->{_download}
-    ) {
-        # parse updated spec file
-        $spec = RPM4::Spec->new($spec_file, force => 1)
-            or croak "Unable to parse updated spec file $spec_file\n"; 
+    open(my $out, '>', $spec_file)
+        or croak "Unable to open file $spec_file: $!";
+    print $out $content;
+    close($out);
+}
 
-        @sources_after = $self->_get_sources($spec, $header);
-        my %seen_before = map { $_ => 1 } @sources_before;
-        my %seen_after  = map { $_ => 1 } @sources_after;
+sub _download_sources {
+    my ($self, $spec, $new_version, %options) = @_;
 
-        my @new_sources = grep { !$seen_before{$_} } @sources_after;
-        my @old_sources = grep { !$seen_after{$_} }  @sources_before;
+    foreach my $new_source ($self->_get_sources($spec)) {
 
-        foreach my $new_source (@new_sources) {
+        # work on a copy, so as to not mess with original list
+        my $source = $new_source;
+        my ($found, $need_bzme);
 
-            # work on a copy, so as to not mess with original list
-            my $source = $new_source;
-            my ($found, $need_bzme);
-
-            # Sourceforge: attempt different mirrors
-            if ($source =~ m!http://prdownloads.sourceforge.net!) {
-                foreach my $sf_mirror (@SF_MIRRORS) {
-                    my $sf_source = $source;
-                    $sf_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
-                    $found = $self->_fetch_tarball($sf_source);
-                    last if $found;
-                }
-            } else {
-                if ($source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                    # GNOME: add the major version to the URL automatically
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                    # is rewritten in
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                    (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
-                    $source =~ s!(.*/)(.*)!$1$major/$2!;
-                } elsif ($source =~ m!\w+\.(perl|cpan)\.org/!) {
-                    # CPAN: force http and tar.gz
-                    $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
-                    $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
-                }
-
-                # single attempt
-                $found = $self->_fetch($source);
+        # Sourceforge: attempt different mirrors
+        if ($source =~ m!http://prdownloads.sourceforge.net!) {
+            my $mirrors = $self->{_config}->get_param('sourceforge_mirrors');
+            foreach my $sf_mirror ($mirrors ? @{$mirrors} : ()) {
+                my $sf_source = $source;
+                $sf_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                $found = $self->_fetch_tarball($sf_source);
+                last if $found;
+            }
+        } else {
+            if ($source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
+                # GNOME: add the major version to the URL automatically
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                # is rewritten in
+                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+                (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
+                $source =~ s!(.*/)(.*)!$1$major/$2!;
+            } elsif ($source =~ m!\w+\.(perl|cpan)\.org/!) {
+                # CPAN: force http and tar.gz
+                $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
+                $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
             }
 
-            croak "Unable to download source: $source" unless $found;
-
-            # recompress if needed
-            $found = _bzme($found) if $need_bzme;
+            # single attempt
+            $found = $self->_fetch($source);
         }
 
-        if ($self->{_old_source_callback}) {
-            foreach my $old_source (@old_sources) {
-                $self->{_old_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($old_source)
-                );
-            }
-        }
-
-        if ($self->{_new_source_callback}) {
-            foreach my $new_source (@new_sources) {
-                $self->{_new_source_callback}->(
-                    $self->{_sourcedir} . '/' . basename($new_source)
-                );
-            }
-        }
-
-    }
+        croak "Unable to download source: $source" unless $found;
 
     # build new package
     if ($self->{_build_source} || $self->{_build_binary}) {
@@ -677,6 +504,7 @@ sub build_from_spec {
             $self->{_build_results_callback}->(@results)
         }
     }
+
 }
 
 sub _fetch {
@@ -712,7 +540,6 @@ sub _fetch_svn {
 sub _fetch_tarball {
     my ($self, $url) = @_;
 
-    print "attempting to download $url\n" if $self->{_verbose};
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
     $agent->timeout($self->{_timeout});
@@ -722,11 +549,10 @@ sub _fetch_tarball {
     # Mandriva policy implies to recompress sources, so if the one that was
     # just looked for was missing, check with other formats
     if (!$file and $url =~ /\.tar\.bz2$/) {
-        foreach my $extension (@EXTENSIONS) {
+        my $extensions = $self->{_config}->get_param('extensions');
+        foreach my $extension ($extensions ? @{$extensions} : ()) {
             my $alternate_url = $url;
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
-            print "attempting to download $alternate_url\n"
-                if $self->{_verbose};
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
                 $file = _bzme($file);
@@ -747,6 +573,7 @@ sub _fetch_potential_tarball {
     # don't attempt to download file if already present
     return $dest if -f $dest;
 
+    print "attempting to download $url\n" if $self->{_verbose};
     my $response = $agent->mirror($url, $dest);
     if ($response->is_success) {
         print "response: OK\n" if $self->{_verbose} > 1;
@@ -768,10 +595,8 @@ sub _get_packager {
     my ($self) = @_;
     my $packager = RPM4::expand('%packager');
     if ($packager eq '%packager') {
-        my ($login, $gecos) = (getpwuid($<))[0,6];
-        $packager = $ENV{EMAIL} ?
-            "$login <$ENV{EMAIL}>" :
-            "$login <$login\@mandriva.com>";
+        my $login = (getpwuid($<))[0];
+        $packager = $ENV{EMAIL} ? "$login <$ENV{EMAIL}>" : $login;
     }
     return $packager;
 }
@@ -793,7 +618,7 @@ sub _find_source_package {
 }
 
 sub _get_sources {
-    my ($self, $spec, $header) = @_;
+    my ($self, $spec) = @_;
 
     my @sources =
         grep { /(?:ftp|svns?|https?):\/\/\S+/ }
@@ -803,9 +628,10 @@ sub _get_sources {
         print "No remote sources were found, fall back on URL tag ...\n"
             if $self->{_verbose};
 
-        my $url = $header->tag('url');
+        my $url = $spec->srcheader()->tag('url');
 
-        foreach my $site (@SITES) {
+        my $sites = $self->{_config}->get_param('sites');
+        foreach my $site ($sites ? @{$sites} : ()) {
             # curiously, we need two level of quoting-evaluation here :(
             if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
                 last;
@@ -845,7 +671,7 @@ sub _get_callback {
 sub _bzme {
     my ($file) = @_;
 
-    system("bzme -f -F $file");
+    system("bzme -f -F $file >/dev/null 2>&1");
     $file =~ s/\.(?:tar\.gz|tgz|zip)$/.tar.bz2/;
 
     return $file;

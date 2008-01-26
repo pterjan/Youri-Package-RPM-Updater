@@ -40,6 +40,3 @@
 	* re-add forgotten x-gzip as a valid content type
 	* allow %rel as release macro too
 	* segregate parsing code in methods, to make testing easier
-
-2007-11-01 Guillaume Rousse <guillomovitch@zarb.org> 0.3.4
-	* only invoke dependencies callback on missing ones, if any
