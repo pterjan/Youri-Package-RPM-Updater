@@ -90,26 +90,7 @@ are supported. Any more complex one is not.
 
 The system configuration file for this module is
 @sysconfdir@/youri/updater.conf. The user configuration file is
-$HOME/.youri/updater.conf. The last one has precendence on the first one.
-
-Those files are YAML files. The following directives can be configured:
-
-=over
-
-=item sites
-
-A list of transformations to compute source tarball URL for some sites. Each
-transformation is an hashref with two keys (from and to).
-
-=item sourceforge_mirrors
-
-A list of sourceforge mirrors to try successively when downloading
-the sources hosted on sourceforge.
-
-=item extensions
-
-A list of alternative tarball extensions to try successively when downloading
-the one given in spec file (usually bz2) fails.
+$HOME/.youri/updater.conf. The last one has precedence on the first one.
 
 =end
 
@@ -187,7 +168,7 @@ sub new {
     }
 
     my $config = Youri::Config->new(
-        directories => [ "$ENV{HOME}/.youri", '@sysconfdir@/youri' ],
+        directories => [ '@sysconfdir@/youri', "$ENV{HOME}/.youri"  ],
         file => 'updater.conf',
     );
 
