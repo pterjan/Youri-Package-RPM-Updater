@@ -100,12 +100,11 @@ use File::Temp qw/tempdir/;
 use LWP::UserAgent;
 use SVN::Client;
 use RPM4;
+use Readonly;
 use version; our $VERSION = qv('0.4.0');
 
-# add jabberstudio, collabnet, http://www.sourcefubar.net/, http://sarovar.org/
-# http://jabberstudio.org/files/ejogger/
-# http://jabberstudio.org/projects/ejogger/project/view.php     
-my @SITES = (
+# default values
+Readonly::Scalar my $default_url_rewrite_rules => [
     {
         from => 'http://(.*)\.(?:sourceforge|sf)\.net/?(.*)',
         to   => 'http://prdownloads.sourceforge.net/$1/$2'
@@ -130,19 +129,7 @@ my @SITES = (
         from => 'http://search.cpan.org/dist/([^-]+)-.*',
         to   => 'http://www.cpan.org/modules/by-module/$1/'
     }
-);
-
-my @SF_MIRRORS = qw/
-    ovh
-    mesh
-    switch
-/;
-
-my @EXTENSIONS = qw/
-    .tar.gz
-    .tgz
-    .zip
-/;
+];
 
 =head1 CLASS METHODS
 
@@ -178,6 +165,29 @@ list of directories containing source packages (default: empty).
 
 timeout for file downloads (default: 10)
 
+=item alternate_extensions $extensions
+
+alternate extensions to try when downloading source fails (default: tar.gz,
+tgz, zip)
+
+=item sourceforge_mirrors $mirrors
+
+mirrors to try when downloading files hosted on sourceforge (default: ovh,
+mesh, switch)
+
+=item url_rewrite_rules $rules
+
+list of rewrite rules to apply on source tag value for computing source URL
+when this last one doesn't have any, as hasrefs of two regexeps
+
+=item new_version_message
+
+changelog message for new version (default: New version %%VERSION)
+
+=item new_release_message
+
+changelog message for new release (default: Rebuild)
+
 =back
 
 =cut
@@ -203,14 +213,24 @@ sub new {
     my $self = bless {
         _topdir             => $topdir,
         _sourcedir          => $sourcedir,
-        _verbose            => defined $options{verbose}        ? 
-            $options{verbose}            : 0,
-        _release_suffix     => defined $options{release_suffix} ?
-            $options{release_suffix}     : undef,
-        _timeout            => defined $options{timeout}        ?
-            $options{timeout}            : 10,
-        _srpm_dirs          => defined $options{srpm_dirs}      ?
-            $options{srpm_dirs}          : undef,
+        _verbose            => defined $options{verbose}                ? 
+            $options{verbose}              : 0,
+        _release_suffix     => defined $options{release_suffix}         ?
+            $options{release_suffix}       : undef,
+        _timeout            => defined $options{timeout}                ?
+            $options{timeout}              : 10,
+        _srpm_dirs          => defined $options{srpm_dirs}              ?
+            $options{srpm_dirs}            : undef,
+        _alternate_extensions => defined $options{alternate_extensions} ?
+            $options{alternate_extensions} : [ qw/.tar.gz .tgz .zip/ ],
+        _sourceforge_mirrors => defined $options{sourceforge_mirrors}   ?
+            $options{sourceforge_mirrors}  : [ qw/ovh mesh switch/ ],
+        _new_version_message  => defined $options{new_version_message}  ?
+            $options{new_version_message}  : 'New version %%VERSION',
+        _new_release_message  => defined $options{new_release_message}  ?
+            $options{new_release_message}  : 'Rebuild',
+        _url_rewrite_rules    => defined $options{url_rewrite_rules}    ?
+            $options{url_rewrite_rules}    : $default_url_rewrite_rules,
     }, $class;
 
     return $self;
@@ -392,14 +412,12 @@ sub _update_spec {
                 $content .= $line;
             }
 
-            my @entries;
-            if ($options{changelog_entries}) {
-                @entries = @{$options{changelog_entries}};
-                s/\%\%VERSION/$new_version/ foreach @entries;
-            } else  {
-                @entries = $new_version ?
-                    "New version $new_version" :
-                    'Rebuild';
+            my @entries =
+                $options{changelog_entries} ? @{$options{changelog_entries}} :
+                $new_version                ? $self->{_new_version_message}  :
+                                              $self->{_new_release_message}  ;
+            foreach my $entry (@entries) {
+                $entry =~ s/\%\%VERSION/$new_version/g;
             }
 
             my $title = RPM4::expand(
@@ -445,9 +463,9 @@ sub _download_sources {
 
         # Sourceforge: attempt different mirrors
         if ($source =~ m!http://prdownloads.sourceforge.net!) {
-            foreach my $sf_mirror (@SF_MIRRORS) {
+            foreach my $mirror (@{$self->{_sourceforge_mirrors}}) {
                 my $sf_source = $source;
-                $sf_source =~ s!prdownloads.sourceforge.net!$sf_mirror.dl.sourceforge.net/sourceforge!;
+                $sf_source =~ s!prdownloads.sourceforge.net!$mirror.dl.sourceforge.net/sourceforge!;
                 $found = $self->_fetch_tarball($sf_source);
                 last if $found;
             }
@@ -519,7 +537,7 @@ sub _fetch_tarball {
     # Mandriva policy implies to recompress sources, so if the one that was
     # just looked for was missing, check with other formats
     if (!$file and $url =~ /\.tar\.bz2$/) {
-        foreach my $extension (@EXTENSIONS) {
+        foreach my $extension (@{$self->{_alternate_extensions}}) {
             my $alternate_url = $url;
             $alternate_url =~ s/\.tar\.bz2$/$extension/;
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
@@ -599,9 +617,9 @@ sub _get_sources {
 
         my $url = $spec->srcheader()->tag('url');
 
-        foreach my $site (@SITES) {
+        foreach my $rule (@{$self->{_url_rewrite_rules}}) {
             # curiously, we need two level of quoting-evaluation here :(
-            if ($url =~ s!$site->{from}!qq(qq($site->{to}))!ee) {
+            if ($url =~ s!$rule->{from}!qq(qq($rule->{to}))!ee) {
                 last;
             }    
         }
