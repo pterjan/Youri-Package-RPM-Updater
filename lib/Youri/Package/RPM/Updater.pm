@@ -222,7 +222,7 @@ sub new {
         _srpm_dirs          => defined $options{srpm_dirs}              ?
             $options{srpm_dirs}            : undef,
         _alternate_extensions => defined $options{alternate_extensions} ?
-            $options{alternate_extensions} : [ qw/.tar.gz .tgz .zip/ ],
+            $options{alternate_extensions} : [ qw/tar.gz tgz zip/ ],
         _sourceforge_mirrors => defined $options{sourceforge_mirrors}   ?
             $options{sourceforge_mirrors}  : [ qw/ovh mesh switch/ ],
         _new_version_message  => defined $options{new_version_message}  ?
@@ -539,7 +539,7 @@ sub _fetch_tarball {
     if (!$file and $url =~ /\.tar\.bz2$/) {
         foreach my $extension (@{$self->{_alternate_extensions}}) {
             my $alternate_url = $url;
-            $alternate_url =~ s/\.tar\.bz2$/$extension/;
+            $alternate_url =~ s/\.tar\.bz2$/.$extension/;
             $file = $self->_fetch_potential_tarball($agent, $alternate_url);
             if ($file) {
                 $file = _bzme($file);
