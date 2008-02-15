@@ -101,7 +101,7 @@ use LWP::UserAgent;
 use SVN::Client;
 use RPM4;
 use Readonly;
-use version; our $VERSION = qv('0.4.0');
+use version; our $VERSION = qv('0.4.1');
 
 # default values
 Readonly::Scalar my $default_url_rewrite_rules => [

@@ -53,3 +53,7 @@
 	* no more reference to mandriva in default packager value
 	* enhanced test suite
 	* rename ChangeLog file to Changes
+
+2008-02-15 Guillaume Rousse <guillomovitch@zarb.org> 0.4.1
+	* allow to redefine url rewrite rules, sourceforge mirrors
+	  and alternate extensions in constructor
