@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id$
+# $Id: /mirror/youri/soft/Repository/trunk/t/test.t 2314 2007-03-22T13:41:57.774951Z guillomovitch  $
 
 use strict;
 use DateTime;
