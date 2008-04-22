@@ -1,7 +1,7 @@
 2008-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.4.2
 	* ensure the module returns a true value when loaded
-	  (thanks Jérôme Quelin)
-	  and alternate extensions in constructor
+	  (spotted by Jérôme Quelin)
+	* rewrite Changes file top-down
 
 2008-02-15 Guillaume Rousse <guillomovitch@zarb.org> 0.4.1
 	* allow to redefine url rewrite rules, sourceforge mirrors
