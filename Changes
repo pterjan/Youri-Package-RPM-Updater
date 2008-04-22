@@ -1,48 +1,11 @@
-2007-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.1.0
-	* initial release
+2008-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.4.2
+	* ensure the module returns a true value when loaded
+	  (thanks Jérôme Quelin)
+	  and alternate extensions in constructor
 
-2007-04-25 Guillaume Rousse <guillomovitch@zarb.org> 0.1.1
-	* fix a wrong invocation of build_from_source as a function, instead
-	  of a method
-
-2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.0
-	* allow to pass external commands instead of callbacks for pre and
-	post building stage, and perl expressions instead of callback for spec
-	file parsing
-	* fix usage with rpm 4.4.8, which doesn't allow to parse spec without
-	checking source file presence
-	* fix identifying release when release number exceed one digit
-	* rewrite the svn extraction part in real perl
-
-2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.1
-	* quote arguments of external commands
-
-2007-07-25 Guillaume Rousse <guillomovitch@zarb.org> 0.3.0
-	* large code cleanup
-	* use LWP instead of File::Fetch to retrieve file, so as to have
-	better control on returned file mime types
-	* download files after spec file edition, allowing to use
-	arbitrary perl expressions to handle source URL, especially
-	for mismatch between software and package version
-	* allow local perl file expression/callback, in addition to global
-	ones
-
-2007-07-26 Guillaume Rousse <guillomovitch@zarb.org> 0.3.1
-	* configurable timeout
-	* CPAN specific download optimizations
-	* abort immediatly if already up to date
-
-2007-07-28 Guillaume Rousse <guillomovitch@zarb.org> 0.3.2
-	* add application/octet-stream as a valid content type
-	* fix source filename change with CPAN optimization
-
-2007-08-11 Guillaume Rousse <guillomovitch@zarb.org> 0.3.3
-	* re-add forgotten x-gzip as a valid content type
-	* allow %rel as release macro too
-	* segregate parsing code in methods, to make testing easier
-
-2007-11-01 Guillaume Rousse <guillomovitch@zarb.org> 0.3.4
-	* only invoke dependencies callback on missing ones, if any
+2008-02-15 Guillaume Rousse <guillomovitch@zarb.org> 0.4.1
+	* allow to redefine url rewrite rules, sourceforge mirrors
+	  and alternate extensions in constructor
 
 2007-11-17 Guillaume Rousse <guillomovitch@zarb.org> 0.4.0
 	* strip away everything related to building, in favor of new
@@ -54,11 +17,48 @@
 	* enhanced test suite
 	* rename ChangeLog file to Changes
 
-2008-02-15 Guillaume Rousse <guillomovitch@zarb.org> 0.4.1
-	* allow to redefine url rewrite rules, sourceforge mirrors
-	  and alternate extensions in constructor
+2007-11-01 Guillaume Rousse <guillomovitch@zarb.org> 0.3.4
+	* only invoke dependencies callback on missing ones, if any
 
-2008-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.4.2
-	* ensure the module returns a true value when loaded
-	  (thanks Jérôme Quelin)
-	  and alternate extensions in constructor
+2007-08-11 Guillaume Rousse <guillomovitch@zarb.org> 0.3.3
+	* re-add forgotten x-gzip as a valid content type
+	* allow %rel as release macro too
+	* segregate parsing code in methods, to make testing easier
+
+2007-07-28 Guillaume Rousse <guillomovitch@zarb.org> 0.3.2
+	* add application/octet-stream as a valid content type
+	* fix source filename change with CPAN optimization
+
+2007-07-26 Guillaume Rousse <guillomovitch@zarb.org> 0.3.1
+	* configurable timeout
+	* CPAN specific download optimizations
+	* abort immediatly if already up to date
+
+2007-07-25 Guillaume Rousse <guillomovitch@zarb.org> 0.3.0
+	* large code cleanup
+	* use LWP instead of File::Fetch to retrieve file, so as to have
+	better control on returned file mime types
+	* download files after spec file edition, allowing to use
+	arbitrary perl expressions to handle source URL, especially
+	for mismatch between software and package version
+	* allow local perl file expression/callback, in addition to global
+	ones
+
+2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.1
+	* quote arguments of external commands
+
+2007-07-01 Guillaume Rousse <guillomovitch@zarb.org> 0.2.0
+	* allow to pass external commands instead of callbacks for pre and
+	post building stage, and perl expressions instead of callback for spec
+	file parsing
+	* fix usage with rpm 4.4.8, which doesn't allow to parse spec without
+	checking source file presence
+	* fix identifying release when release number exceed one digit
+	* rewrite the svn extraction part in real perl
+
+2007-04-25 Guillaume Rousse <guillomovitch@zarb.org> 0.1.1
+	* fix a wrong invocation of build_from_source as a function, instead
+	  of a method
+
+2007-04-22 Guillaume Rousse <guillomovitch@zarb.org> 0.1.0
+	* initial release
