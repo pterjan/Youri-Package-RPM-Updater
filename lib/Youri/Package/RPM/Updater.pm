@@ -593,7 +593,7 @@ sub _fetch_potential_tarball {
         if ($filename =~ /\.(?:tar|gz|gzip|bz2|bzip2|lzma)$/) {
             my $type = $response->header('Content-Type');
             print "content-type: $type\n" if $self->{_verbose} > 1;
-            if ($type !~ m!^application/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma)|octet-stream)$!) {
+            if ($type !~ m!^application/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream)$!) {
                 # wrong type
                 unlink $dest;
                 return;
