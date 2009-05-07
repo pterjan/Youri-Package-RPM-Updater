@@ -1,3 +1,9 @@
+2009-05-07 Guillaume Rousse <guillomovitch@zarb.org> 0.4.4
+	* accept application/x-download content-type for archives
+	* make user-agent configurable, with a different default
+	  value from libwww, to be able to download content from
+	  berlios.de (spotted by Götz)
+
 2009-01-06 Guillaume Rousse <guillomovitch@zarb.org> 0.4.3
 	* only check content-type when downloading tarballs
 	  (spotted by Buchan Milne)
