@@ -183,6 +183,10 @@ list of directories containing source packages (default: empty).
 
 timeout for file downloads (default: 10)
 
+=item agent $agent
+
+user agent for file downloads (default: youri-package-updater/$VERSION)
+
 =item alternate_extensions $extensions
 
 alternate extensions to try when downloading source fails (default: tar.gz,
@@ -237,6 +241,8 @@ sub new {
             $options{release_suffix}       : undef,
         _timeout            => defined $options{timeout}                ?
             $options{timeout}              : 10,
+        _agent              => defined $options{agent}                  ?
+            $options{agent}                : "youri-package-updater/$VERSION",
         _srpm_dirs          => defined $options{srpm_dirs}              ?
             $options{srpm_dirs}            : undef,
         _alternate_extensions => defined $options{alternate_extensions} ?
@@ -549,6 +555,7 @@ sub _fetch_tarball {
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
     $agent->timeout($self->{_timeout});
+    $agent->agent($self->{_agent});
 
     my $file = $self->_fetch_potential_tarball($agent, $url);
 
