@@ -149,6 +149,9 @@ Readonly::Scalar my $default_url_rewrite_rules => [
     }
 ];
 
+Readonly::Scalar my $default_valid_content_types =>
+    '^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream)$';
+
 =head1 CLASS METHODS
 
 =head2 new(%options)
@@ -201,6 +204,11 @@ mesh, switch)
 
 list of rewrite rules to apply on source tag value for computing source URL
 when this last one doesn't have any, as hasrefs of two regexeps
+
+=item valid_content_types $types
+
+regexp of accepted content types when downloading archive files (anything
+matching \.(tar|gz|gzip|bz2|bzip2|lzma)$ regexp)
 
 =item new_version_message
 
@@ -255,6 +263,8 @@ sub new {
             $options{new_release_message}  : 'Rebuild',
         _url_rewrite_rules    => defined $options{url_rewrite_rules}    ?
             $options{url_rewrite_rules}    : $default_url_rewrite_rules,
+        _valid_content_types  => defined $options{valid_content_types}  ?
+            $options{valid_content_types}  : $default_valid_content_types,
     }, $class;
 
     return $self;
@@ -593,7 +603,7 @@ sub _fetch_potential_tarball {
         if ($filename =~ /\.(?:tar|gz|gzip|bz2|bzip2|lzma)$/) {
             my $type = $response->header('Content-Type');
             print "content-type: $type\n" if $self->{_verbose} > 1;
-            if ($type !~ m!^application/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream)$!) {
+            if ($type !~ /$self->{_valid_content_types}/) {
                 # wrong type
                 unlink $dest;
                 return;
