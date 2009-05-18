@@ -150,7 +150,7 @@ Readonly::Scalar my $default_url_rewrite_rules => [
 ];
 
 Readonly::Scalar my $default_valid_content_types =>
-    '^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream)$';
+    '^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream|empty)$';
 
 =head1 CLASS METHODS
 
