@@ -1,3 +1,7 @@
+2009-05-18 Guillaume Rousse <guillomovitch@zarb.org> 0.4.5
+	* make accepted content types configurable
+	* add application/empty as valid content type
+
 2009-05-07 Guillaume Rousse <guillomovitch@zarb.org> 0.4.4
 	* accept application/x-download content-type for archives
 	* make user-agent configurable, with a different default
