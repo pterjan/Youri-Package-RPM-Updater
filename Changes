@@ -1,3 +1,7 @@
+2009-06-02 Guillaume Rousse <guillomovitch@zarb.org> 0.4.6
+	* recognize %upstream_version macro
+	* recognize %{mkrel X} macro syntax
+
 2009-05-18 Guillaume Rousse <guillomovitch@zarb.org> 0.4.5
 	* make accepted content types configurable
 	* add application/empty as valid content type
