@@ -411,9 +411,10 @@ sub _update_spec {
             $new_version              && # version change needed
             !$version_updated            # not already done
         ) {
-            my ($directive, $value) = _get_new_version($line, $new_version);
+            my ($directive, $spacing, $value) =
+                _get_new_version($line, $new_version);
             if ($directive && $value) {
-                $line = $directive . $value . "\n";
+                $line = $directive . $spacing . $value . "\n";
                 $new_version = $value;
                 $version_updated = 1;
             }
@@ -422,9 +423,10 @@ sub _update_spec {
         if ($options{update_revision} && # update required
             !$release_updated            # not already done
         ) {
-            my ($directive, $value) = _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
+            my ($directive, $spacing, $value) =
+                _get_new_release($line, $new_version, $new_release, $self->{_release_suffix});
             if ($directive && $value) {
-                $line = $directive . $value . "\n";
+                $line = $directive . $spacing . $value . "\n";
                 $new_release = $value;
                 $release_updated = 1;
             }
@@ -704,36 +706,46 @@ sub _get_new_version {
 
     return unless $line =~ /^
         (
-            \%define\s+version\s+ # defined as macro
+            %define \s+              # macro
+                (?:
+                    version
+                |
+                    upstream_version
+                )
         |
-            (?i)Version:\s+       # defined as tag
+            (?i)Version:             # tag
         )
-        (\S+(?:\s+\S+)*)          # definition
-        \s*                       # trailing spaces
-    $/ox;
+        (\s+)                        # spacing
+        (\S+(?: \s+ \S+)*)           # value
+    /ox;
 
-    my ($directive, $value) = ($1, $2);
+    my ($directive, $spacing, $value) = ($1, $2, $3);
 
     if ($new_version) {
         $value = $new_version;
     }
 
-    return ($directive, $value);
+    return ($directive, $spacing, $value);
 }
 sub _get_new_release {
     my ($line, $new_version, $new_release, $release_suffix) = @_;
 
     return unless $line =~ /^
     (
-        \%define\s+rel(?:ease)?\s+ # defined as macro
+        %define \s+      # macro
+            (?:
+                rel
+            |
+                release
+            )
     |
-        (?i)Release:\s+            # defined as tag
+        (?i)Release:     # tag
     )
-    (\S+(?:\s+\S+)*)               # definition
-    \s*                            # trailing spaces
-    $/ox;
+    (\s+)                # spacing
+    (\S+(?: \s+ \S+)*)   # value
+    /ox;
 
-    my ($directive, $value) = ($1, $2);
+    my ($directive, $spacing, $value) = ($1, $2, $3);
 
     if ($new_release) {
         $value = $new_release;
@@ -768,7 +780,7 @@ sub _get_new_release {
 
     }
 
-    return ($directive, $value);
+    return ($directive, $spacing, $value);
 }
 
 1;
