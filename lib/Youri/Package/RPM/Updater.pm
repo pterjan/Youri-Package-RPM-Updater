@@ -750,37 +750,46 @@ sub _get_new_release {
     if ($new_release) {
         $value = $new_release;
     } else {
-        # if not explicit release given, try to compute it
-        my ($macro_name, $macro_value) = $value =~ /^(%\w+\s+)?(.*)$/;
-
-        croak "Unable to extract release value from value '$value'"
-            unless $macro_value;
-
-        my ($prefix, $number, $suffix); 
-        if ($new_version) {
-            $number = 1;
+        if ($value =~ /^% (\w+) (\s+) (\S+) $/x) {
+            my ($macro_name, $macro_spacing, $macro_value) = ($1, $2, $3);
+            $macro_value = _get_new_release_number($macro_value, $new_version, $release_suffix);
+            $value = '%' . $macro_name . $macro_spacing . $macro_value;
+        } elsif ($value =~ /^% { (\w+) (\s+) (\S+) } $/x) {
+            my ($macro_name, $macro_spacing, $macro_value) = ($1, $2, $3);
+            $macro_value = _get_new_release_number($macro_value, $new_version, $release_suffix);
+            $value = '%{' . $macro_name . $macro_spacing . $macro_value . '}';
         } else {
-            # optional suffix from configuration
-            $release_suffix = $release_suffix ?
-                quotemeta($release_suffix) : '';
-            ($prefix, $number, $suffix) =
-                $macro_value =~ /^(.*?)(\d+)($release_suffix)?$/;
-
-            croak "Unable to extract release number from value '$macro_value'"
-                unless $number;
-
-            $number++;
+            $value = _get_new_release_number($value, $new_version, $release_suffix);
         }
-
-        $value = 
-            ($macro_name ? $macro_name : "") .
-            ($prefix ? $prefix : "") .
-            $number .
-            ($suffix ? $suffix : "");
-
     }
 
     return ($directive, $spacing, $value);
+}
+
+sub _get_new_release_number {
+    my ($value, $new_version, $release_suffix) = @_;
+
+    my ($prefix, $number, $suffix); 
+    if ($new_version) {
+        $number = 1;
+    } else {
+        # optional suffix from configuration
+        $release_suffix = $release_suffix ?
+            quotemeta($release_suffix) : '';
+        ($prefix, $number, $suffix) =
+            $value =~ /^(.*?)(\d+)($release_suffix)?$/;
+
+        croak "Unable to extract release number from value '$value'"
+            unless $number;
+
+        $number++;
+    }
+
+    return 
+        ($prefix ? $prefix : "") .
+        $number .
+        ($suffix ? $suffix : "");
+
 }
 
 1;
