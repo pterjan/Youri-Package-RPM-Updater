@@ -166,6 +166,10 @@ Available options:
 
 verbosity level (default: 0).
 
+=item check_new_version <true/false>
+
+check new version is really new before updating spec file (default: true).
+
 =item topdir $topdir
 
 rpm top-level directory (default: rpm %_topdir macro).
@@ -245,6 +249,8 @@ sub new {
         _sourcedir          => $sourcedir,
         _verbose            => defined $options{verbose}                ? 
             $options{verbose}              : 0,
+        _check_new_version  => defined $options{check_new_version}      ?
+            $options{check_new_version}    : 1,
         _release_suffix     => defined $options{release_suffix}         ?
             $options{release_suffix}       : undef,
         _timeout            => defined $options{timeout}                ?
@@ -391,7 +397,9 @@ sub _update_spec {
 
     # return if old version >= new version
     my $old_version = $header->tag('version');
-    return if $new_version && RPM4::rpmvercmp($old_version, $new_version) >= 0;
+    return if $options{check_new_version} &&
+              $new_version                &&
+              RPM4::rpmvercmp($old_version, $new_version) >= 0;
 
     my $new_release = $options{release};
     my $epoch       = $header->tag('epoch');
