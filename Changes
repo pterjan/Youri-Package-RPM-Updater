@@ -1,3 +1,9 @@
+2009-07-03 Guillaume Rousse <guillomovitch@zarb.org> 0.4.7
+	* make version check before updating optional, for special situations 
+	  where comparaison is not reliable, such as mandriva perl packages
+	  where one version is mangled and the other not
+	* fix a warning during tests
+
 2009-06-02 Guillaume Rousse <guillomovitch@zarb.org> 0.4.6
 	* recognize %upstream_version macro
 	* recognize %{mkrel X} macro syntax
