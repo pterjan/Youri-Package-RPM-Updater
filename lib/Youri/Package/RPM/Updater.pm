@@ -401,7 +401,7 @@ sub _update_spec {
               $new_version                &&
               RPM4::rpmvercmp($old_version, $new_version) >= 0;
 
-    my $new_release = $options{release};
+    my $new_release = $options{release} || '';
     my $epoch       = $header->tag('epoch');
 
     if ($options{spec_line_expression}) {
