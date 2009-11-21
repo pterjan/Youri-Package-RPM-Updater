@@ -12,6 +12,8 @@ WriteMakefile(
         'LWP::UserAgent'     => 0,
         'Test::Exception'    => 0,
         'SVN::Client'        => 0,
+        'List::MoreUtils'    => 0,
+        'YAML::AppConfig'    => 0,
         'version'            => 0
     }
 );
