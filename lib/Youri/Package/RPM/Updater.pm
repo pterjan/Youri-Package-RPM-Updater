@@ -86,6 +86,20 @@ or indirect definition:
 
 are supported. Any more complex one is not.
 
+=head1 CONFIGURATION
+
+The following YAML-format configuration files are used:
+
+=over
+
+=item the system configuration file is F</etc/youri/updater.conf>
+
+=item the user configuration file is F<$HOME/.youri/updater.conf>
+
+=back
+
+Allowed directives are the same as new method options.
+
 =head1 AUTHORS
 
 Julien Danjou <danjou@mandriva.com>
