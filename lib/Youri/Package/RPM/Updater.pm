@@ -153,17 +153,29 @@ url_rewrite_rules:
         from: http://search.cpan.org/dist/([^-]+)-.*
         to:   http://www.cpan.org/modules/by-module/$1/
 
-valid_content_types:
-    - application/x-tar
-    - application/x-gz
-    - application/x-gzip
-    - application/x-bz2
-    - application/x-bzip
-    - application/x-bzip2
-    - application/x-lzma
-    - application/x-download
-    - application/octet-stream
-    - application/empty
+archive_content_types:
+    tar: 
+        - application/x-tar
+    gz:
+        - application/x-gz
+        - application/x-gzip
+    tgz:
+        - application/x-gz
+        - application/x-gzip
+    bz2:
+        - application/x-bz2
+        - application/x-bzip2
+    tbz2:
+        - application/x-bz2
+        - application/x-bzip2
+    zip:
+        - application/x-gzip
+    lzma:
+        - application/x-lzma
+    _all:
+        - application/x-download
+        - application/octet-stream
+        - application/empty
 
 alternate_extensions:
     - tar.gz
@@ -237,9 +249,10 @@ mesh, switch)
 list of rewrite rules to apply on source tag value for computing source URL
 when this last one doesn't have any, as hasrefs of two regexeps
 
-=item valid_content_types $types
+=item archive_content_types $types
 
-list of accepted content types when downloading archive files
+hash of list of accepted content types when downloading archive files, indexed
+by archive extension
 
 =item new_version_message
 
@@ -299,8 +312,8 @@ sub new {
                                  $config->get('new_release_message'),
         _url_rewrite_rules    => $options{url_rewrite_rules} //
                                  $config->get('url_rewrite_rules'),
-        _valid_content_types  => $options{valid_content_types} //
-                                 $config->get('valid_content_types'),
+        _archive_content_types => $options{archive_content_types} //
+                                  $config->get('archive_content_types'),
     }, $class;
 
     return $self;
@@ -648,17 +661,27 @@ sub _fetch_potential_tarball {
     my $response = $agent->mirror($url, $dest);
     if ($response->is_success()) {
         print "response: OK\n" if $self->{_verbose} > 1;
-        # check content type for archives
-        if ($filename =~ /\.(?:tar|gz|gzip|bz2|bzip2|lzma)$/) {
+        my ($extension) = $filename =~ /\.(\w+)$/;
+        if ($self->{_archive_content_types}->{$extension}) {
+            # check content type for archives
             my $type = $response->header('Content-Type');
-            print "content-type: $type\n" if $self->{_verbose} > 1;
-            if (none { $type eq $_ } @{$self->{_valid_content_types}}) {
+            print "checking content-type $type...: " if $self->{_verbose} > 1;
+            if (
+                none { $type eq $_ }
+                @{$self->{_archive_content_types}->{$extension}},
+                @{$self->{_archive_content_types}->{_all}}
+            ) {
                 # wrong type
+                print "NOK\n" if $self->{_verbose} > 1;
                 unlink $dest;
                 return;
+            } else {
+                print "OK\n" if $self->{_verbose} > 1;
             }
         }
         return $dest;
+    } else {
+        print "response: NOK\n" if $self->{_verbose} > 1;
     }
 }
 
