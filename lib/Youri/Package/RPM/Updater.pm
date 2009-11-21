@@ -164,9 +164,11 @@ archive_content_types:
         - application/x-gzip
     bz2:
         - application/x-bz2
+        - application/x-bzip
         - application/x-bzip2
     tbz2:
         - application/x-bz2
+        - application/x-bzip
         - application/x-bzip2
     zip:
         - application/x-gzip
