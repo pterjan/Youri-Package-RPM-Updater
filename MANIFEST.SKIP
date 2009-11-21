@@ -15,3 +15,4 @@
 ^Makefile$
 ^Makefile\.old$
 ^Youri-Package-RPM-Updater-[\d.]+/
+^Debian_CPANTS.txt$
