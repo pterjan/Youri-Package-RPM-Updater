@@ -554,6 +554,9 @@ sub _download_sources {
                 # CPAN: force http and tar.gz
                 $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
                 $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
+            } elsif ($source =~ m!download.pear.php.net/!) {
+                # PEAR: force tgz
+                $need_bzme = $source =~ s!\.tar\.bz2$!.tgz!;
             }
 
             # single attempt
