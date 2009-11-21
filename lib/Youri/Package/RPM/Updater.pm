@@ -122,6 +122,7 @@ use RPM4;
 use Readonly;
 use YAML::AppConfig;
 use version; our $VERSION = qv('0.4.7');
+use feature qw/switch/;
 
 # default values
 Readonly::Scalar my $defaults => <<'EOF';
@@ -534,8 +535,9 @@ sub _download_sources {
         my $source = $new_source;
         my ($found, $need_bzme);
 
-        # Sourceforge: attempt different mirrors
         if ($source =~ m!http://prdownloads.sourceforge.net!) {
+            # if content is hosted on source forge, attempt to download
+            # from all configured mirrors
             foreach my $mirror (@{$self->{_sourceforge_mirrors}}) {
                 my $sf_source = $source;
                 $sf_source =~ s!prdownloads.sourceforge.net!$mirror.dl.sourceforge.net/sourceforge!;
@@ -543,23 +545,28 @@ sub _download_sources {
                 last if $found;
             }
         } else {
-            if ($source =~ m!ftp.gnome.org/pub/GNOME/sources/!) {
-                # GNOME: add the major version to the URL automatically
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                # is rewritten in
-                # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
-                $source =~ s!(.*/)(.*)!$1$major/$2!;
-            } elsif ($source =~ m!\w+\.(perl|cpan)\.org/!) {
-                # CPAN: force http and tar.gz
-                $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
-                $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
-            } elsif ($source =~ m!download.pear.php.net/!) {
-                # PEAR: force tgz
-                $need_bzme = $source =~ s!\.tar\.bz2$!.tgz!;
+            # otherwise, a single attempt is enough, after some 
+            # optional source-specific black magic
+            given ($source) {
+                when (m!ftp.gnome.org/pub/GNOME/sources/!) {
+                    # GNOME: add the major version to the URL automatically
+                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
+                    # is rewritten in
+                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+                    (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
+                    $source =~ s!(.*/)(.*)!$1$major/$2!;
+                }
+                when (m!\w+\.(perl|cpan)\.org/!) {
+                    # CPAN: force http and tar.gz
+                    $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
+                    $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
+                }
+                when (m!download.pear.php.net/!) {
+                    # PEAR: force tgz
+                    $need_bzme = $source =~ s!\.tar\.bz2$!.tgz!;
+                }
             }
 
-            # single attempt
             $found = $self->_fetch($source);
         }
 
