@@ -119,38 +119,54 @@ use LWP::UserAgent;
 use SVN::Client;
 use RPM4;
 use Readonly;
+use YAML::AppConfig;
 use version; our $VERSION = qv('0.4.7');
 
 # default values
-Readonly::Scalar my $default_url_rewrite_rules => [
-    {
-        from => 'http://(.*)\.(?:sourceforge|sf)\.net/?(.*)',
-        to   => 'http://prdownloads.sourceforge.net/$1/$2'
-    },
-    { # to test
-        from => 'https?://gna.org/projects/([^/]*)/(.*)',
-        to   => 'http://download.gna.org/$1/$2'
-    },
-    {
-        from => 'http://(.*)\.berlios.de/(.*)',
-        to   => 'http://download.berlios.de/$1/$2'
-    },
-    { # to test , and to merge with regular savanah ?
-        from => 'https?://savannah.nongnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.nongnu.org/download/$1/$2'
-    },
-    { # to test
-        from => 'https?://savannah.gnu.org/projects/([^/]*)/(.*)',
-        to   => 'http://savannah.gnu.org/download/$1/$2'
-    },
-    {
-        from => 'http://search.cpan.org/dist/([^-]+)-.*',
-        to   => 'http://www.cpan.org/modules/by-module/$1/'
-    }
-];
+Readonly::Scalar my $defaults => <<'EOF';
+---
+srpm_dirs:
 
-Readonly::Scalar my $default_valid_content_types =>
-    '^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream|empty)$';
+timeout: 10
+
+agent: youri-package-updater/$VERSION
+
+url_rewrite_rules:
+    - 
+        from: http://(.*)\.(?:sourceforge|sf)\.net/?(.*)
+        to:   http://prdownloads.sourceforge.net/$1/$2
+    -
+        from: https?://gna.org/projects/([^/]*)/(.*)'
+        to:   http://download.gna.org/$1/$2
+    -
+        from: http://(.*)\.berlios.de/(.*)
+        to:   http://download.berlios.de/$1/$2
+    -
+        from: https?://savannah.nongnu.org/projects/([^/]*)/(.*)
+        to:   http://savannah.nongnu.org/download/$1/$2
+    -
+        from: https?://savannah.gnu.org/projects/([^/]*)/(.*)
+        to:   http://savannah.gnu.org/download/$1/$2
+    -
+        from: http://search.cpan.org/dist/([^-]+)-.*
+        to:   http://www.cpan.org/modules/by-module/$1/
+
+valid_content_types: ^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream|empty)$
+
+alternate_extensions:
+    - tar.gz
+    - tgz
+    - zip
+
+sourceforge_mirrors:
+    - ovh
+    - mesh
+    - switch
+
+new_version_message: New version %%VERSION
+
+new_release_message: Rebuild
+EOF
 
 =head1 CLASS METHODS
 
@@ -244,33 +260,36 @@ sub new {
         $sourcedir = RPM4::expand('%_sourcedir');
     }
 
+    my $config = YAML::AppConfig->new(string => $defaults);
+    $config->merge(file => '/etc/youri/updater.conf')
+        if -r '/etc/youri/updater.conf';
+    $config->merge(file => "$ENV{HOME}/.youri/updater.conf")
+        if -r "$ENV{HOME}/.youri/updater.conf";
+     
     my $self = bless {
-        _topdir             => $topdir,
-        _sourcedir          => $sourcedir,
-        _verbose            => defined $options{verbose}                ? 
-            $options{verbose}              : 0,
-        _check_new_version  => defined $options{check_new_version}      ?
-            $options{check_new_version}    : 1,
-        _release_suffix     => defined $options{release_suffix}         ?
-            $options{release_suffix}       : undef,
-        _timeout            => defined $options{timeout}                ?
-            $options{timeout}              : 10,
-        _agent              => defined $options{agent}                  ?
-            $options{agent}                : "youri-package-updater/$VERSION",
-        _srpm_dirs          => defined $options{srpm_dirs}              ?
-            $options{srpm_dirs}            : undef,
-        _alternate_extensions => defined $options{alternate_extensions} ?
-            $options{alternate_extensions} : [ qw/tar.gz tgz zip/ ],
-        _sourceforge_mirrors => defined $options{sourceforge_mirrors}   ?
-            $options{sourceforge_mirrors}  : [ qw/ovh mesh switch/ ],
-        _new_version_message  => defined $options{new_version_message}  ?
-            $options{new_version_message}  : 'New version %%VERSION',
-        _new_release_message  => defined $options{new_release_message}  ?
-            $options{new_release_message}  : 'Rebuild',
-        _url_rewrite_rules    => defined $options{url_rewrite_rules}    ?
-            $options{url_rewrite_rules}    : $default_url_rewrite_rules,
-        _valid_content_types  => defined $options{valid_content_types}  ?
-            $options{valid_content_types}  : $default_valid_content_types,
+        _topdir               => $topdir,
+        _sourcedir            => $sourcedir,
+        _verbose              => $options{verbose}           // 0,
+        _check_new_version    => $options{check_new_version} // 1,
+        _release_suffix       => $options{release_suffix}    //  undef,
+        _timeout              => $options{timeout} //
+                                 $config->get('timeout'),
+        _agent                => $options{agent} //
+                                 $config->get('agent'),
+        _srpm_dirs            => $options{srpm_dirs} //
+                                 $config->get('srpm_dirs'),
+        _alternate_extensions => $options{alternate_extensions} //
+                                 $config->get('alternate_extensions'),
+        _sourceforge_mirrors  => $options{sourceforge_mirrors} //
+                                 $config->get('sourceforge_mirrors'),
+        _new_version_message  => $options{new_version_message} //
+                                 $config->get('new_version_message'),
+        _new_release_message  => $options{new_release_message} //
+                                 $config->get('new_release_message'),
+        _url_rewrite_rules    => $options{url_rewrite_rules} //
+                                 $config->get('url_rewrite_rules'),
+        _valid_content_types  => $options{valid_content_types} //
+                                 $config->get('valid_content_types'),
     }, $class;
 
     return $self;
