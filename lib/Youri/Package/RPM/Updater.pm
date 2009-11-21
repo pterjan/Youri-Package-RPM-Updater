@@ -145,7 +145,7 @@ srpm_dirs:
 
 timeout: 10
 
-agent: youri-package-updater/$VERSION
+agent: youri-package-updater/0.5.0
 
 url_rewrite_rules:
     - 
