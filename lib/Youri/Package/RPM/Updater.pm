@@ -681,7 +681,7 @@ sub _fetch_potential_tarball {
         if ($self->{_archive_content_types}->{$extension}) {
             # check content type for archives
             my $type = $response->header('Content-Type');
-            print "checking content-type $type...: " if $self->{_verbose} > 1;
+            print "checking content-type $type: " if $self->{_verbose} > 1;
             if (
                 none { $type eq $_ }
                 @{$self->{_archive_content_types}->{$extension}},
