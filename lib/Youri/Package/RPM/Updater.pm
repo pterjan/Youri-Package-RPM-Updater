@@ -145,7 +145,7 @@ srpm_dirs:
 
 timeout: 10
 
-agent: youri-package-updater/0.5.0
+agent: youri-package-updater/VERSION
 
 url_rewrite_rules:
     - 
@@ -263,11 +263,11 @@ mesh, switch)
 =item url_rewrite_rules $rules
 
 list of rewrite rules to apply on source tag value for computing source URL
-when this last one doesn't have any, as hasrefs of two regexeps
+when the source is a local file, as hashes of two regexeps
 
 =item archive_content_types $types
 
-hash of list of accepted content types when downloading archive files, indexed
+hash of lists of accepted content types when downloading archive files, indexed
 by archive extension
 
 =item new_version_message
@@ -331,6 +331,8 @@ sub new {
         _archive_content_types => $options{archive_content_types} //
                                   $config->get('archive_content_types'),
     }, $class;
+
+    $self->{_agent} =~ s/VERSION/$VERSION/;
 
     return $self;
 }
