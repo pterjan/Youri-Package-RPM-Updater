@@ -636,7 +636,7 @@ sub _fetch_potential_tarball {
 
     print "attempting to download $url\n" if $self->{_verbose};
     my $response = $agent->mirror($url, $dest);
-    if ($response->is_success) {
+    if ($response->is_success()) {
         print "response: OK\n" if $self->{_verbose} > 1;
         # check content type for archives
         if ($filename =~ /\.(?:tar|gz|gzip|bz2|bzip2|lzma)$/) {
