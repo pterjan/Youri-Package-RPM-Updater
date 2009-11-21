@@ -115,6 +115,7 @@ use File::Copy;
 use File::Spec;
 use File::Path;
 use File::Temp qw/tempdir/;
+use List::MoreUtils qw/none/;
 use LWP::UserAgent;
 use SVN::Client;
 use RPM4;
@@ -151,7 +152,17 @@ url_rewrite_rules:
         from: http://search.cpan.org/dist/([^-]+)-.*
         to:   http://www.cpan.org/modules/by-module/$1/
 
-valid_content_types: ^application\/(?:x-(?:tar|gz|gzip|bz2|bzip2|lzma|download)|octet-stream|empty)$
+valid_content_types:
+    - application/x-tar
+    - application/x-gz
+    - application/x-gzip
+    - application/x-bz2
+    - application/x-bzip
+    - application/x-bzip2
+    - application/x-lzma
+    - application/x-download
+    - application/octet-stream
+    - application/empty
 
 alternate_extensions:
     - tar.gz
@@ -227,8 +238,7 @@ when this last one doesn't have any, as hasrefs of two regexeps
 
 =item valid_content_types $types
 
-regexp of accepted content types when downloading archive files (anything
-matching \.(tar|gz|gzip|bz2|bzip2|lzma)$ regexp)
+list of accepted content types when downloading archive files
 
 =item new_version_message
 
@@ -632,7 +642,7 @@ sub _fetch_potential_tarball {
         if ($filename =~ /\.(?:tar|gz|gzip|bz2|bzip2|lzma)$/) {
             my $type = $response->header('Content-Type');
             print "content-type: $type\n" if $self->{_verbose} > 1;
-            if ($type !~ /$self->{_valid_content_types}/) {
+            if (none { $type eq $_ } @{$self->{_valid_content_types}}) {
                 # wrong type
                 unlink $dest;
                 return;
