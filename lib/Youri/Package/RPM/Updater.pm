@@ -171,22 +171,27 @@ archive_content_types:
     tar: 
         - application/x-tar
     gz:
+        - application/x-tar
         - application/x-gz
         - application/x-gzip
     tgz:
+        - application/x-tar
         - application/x-gz
         - application/x-gzip
     bz2:
+        - application/x-tar
         - application/x-bz2
         - application/x-bzip
         - application/x-bzip2
     tbz2:
+        - application/x-tar
         - application/x-bz2
         - application/x-bzip
         - application/x-bzip2
     zip:
         - application/x-gzip
     lzma:
+        - application/x-tar
         - application/x-lzma
     _all:
         - application/x-download
