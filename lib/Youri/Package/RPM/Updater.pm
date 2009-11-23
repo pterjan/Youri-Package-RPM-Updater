@@ -700,6 +700,7 @@ sub _fetch_potential_tarball {
         return $dest;
     } else {
         print "response: NOK\n" if $self->{_verbose} > 1;
+        return;
     }
 }
 
