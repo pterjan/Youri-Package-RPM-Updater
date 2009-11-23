@@ -1,3 +1,7 @@
+2009-11-22 Guillaume Rousse <guillomovitch@zarb.org> 0.5.1
+	* fix fallback to other compression format when a .tar.bz2 archive
+	  is not found
+
 2009-11-21 Guillaume Rousse <guillomovitch@zarb.org> 0.5.0
 	* allow usage of YAML-format configuration files
 	* check content-types according to file extension
