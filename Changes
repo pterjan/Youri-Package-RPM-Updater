@@ -1,3 +1,7 @@
+2009-12-02 Guillaume Rousse <guillomovitch@zarb.org> 0.5.2
+	* add application/x-tar as a valid mime-type for all compressed 
+	  tar archives
+
 2009-11-22 Guillaume Rousse <guillomovitch@zarb.org> 0.5.1
 	* fix fallback to other compression format when a .tar.bz2 archive
 	  is not found
