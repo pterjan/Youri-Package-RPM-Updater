@@ -585,12 +585,22 @@ sub _download_sources {
             # optional source-specific black magic
             given ($source) {
                 when (m!ftp.gnome.org/pub/GNOME/sources/!) {
-                    # GNOME: add the major version to the URL automatically
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/ORbit2-2.10.0.tar.bz2
-                    # is rewritten in
+                    # the last part of the path should match current
+                    # major and minor version numbers:
                     # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                    (my $major = $new_version) =~ s/([^.]+\.[^.]+).*/$1/;
-                    $source =~ s!(.*/)(.*)!$1$major/$2!;
+                    my ($major, $minor) = split('\.', $new_version);
+                    $source =~ m!(.+)/([^/]+)$!;
+                    my ($path, $file) = ($1, $2);
+                    if ($path =~ m!/(\d+)\.(\d+)$!) {
+                        # expected format found
+                        if ($1 != $major || $2 != $minor) {
+                            # but not corresponding to the current version
+                            $path =~ s!\d+\.\d+$!$major.$minor!;
+                        }
+                    } else {
+                        $path .= "/$major.$minor";
+                    }
+                    $source = "$path/$file";
                 }
                 when (m!\w+\.(perl|cpan)\.org/!) {
                     # CPAN: force http and tar.gz
