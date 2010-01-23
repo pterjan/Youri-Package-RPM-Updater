@@ -583,35 +583,7 @@ sub _download_sources {
         } else {
             # otherwise, a single attempt is enough, after some 
             # optional source-specific black magic
-            given ($source) {
-                when (m!ftp.gnome.org/pub/GNOME/sources/!) {
-                    # the last part of the path should match current
-                    # major and minor version numbers:
-                    # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
-                    my ($major, $minor) = split('\.', $new_version);
-                    $source =~ m!(.+)/([^/]+)$!;
-                    my ($path, $file) = ($1, $2);
-                    if ($path =~ m!/(\d+)\.(\d+)$!) {
-                        # expected format found
-                        if ($1 != $major || $2 != $minor) {
-                            # but not corresponding to the current version
-                            $path =~ s!\d+\.\d+$!$major.$minor!;
-                        }
-                    } else {
-                        $path .= "/$major.$minor";
-                    }
-                    $source = "$path/$file";
-                }
-                when (m!\w+\.(perl|cpan)\.org/!) {
-                    # CPAN: force http and tar.gz
-                    $need_bzme = $source =~ s!\.tar\.bz2$!.tar.gz!;
-                    $source =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
-                }
-                when (m!download.pear.php.net/!) {
-                    # PEAR: force tgz
-                    $need_bzme = $source =~ s!\.tar\.bz2$!.tgz!;
-                }
-            }
+            ($source, $need_bzme) = _get_mangled_url($source, $new_version);
 
             $found = $self->_fetch($source);
         }
@@ -894,6 +866,45 @@ sub _get_new_release_number {
         $number .
         ($suffix ? $suffix : "");
 
+}
+
+sub _get_mangled_url {
+    my ($url, $version) = @_;
+
+    my $need_bzme = 0;
+    given ($url) {
+        when (m!ftp.gnome.org/pub/GNOME/sources/!) {
+            # the last part of the path should match current
+            # major and minor version numbers:
+            # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
+            my ($major, $minor) = split('\.', $version);
+            $url =~ m!(.+)/([^/]+)$!;
+            my ($path, $file) = ($1, $2);
+            if ($path =~ m!/(\d+)\.(\d+)$!) {
+                # expected format found
+                if ($1 != $major || $2 != $minor) {
+                    # but not corresponding to the current version
+                    $path =~ s!\d+\.\d+$!$major.$minor!;
+                }
+            } else {
+                $path .= "/$major.$minor";
+            }
+            $url = "$path/$file";
+        }
+        when (m!\w+\.(perl|cpan)\.org/!) {
+            # CPAN: force http and tar.gz
+            $need_bzme = 1
+                if $url =~ s!\.tar\.bz2$!.tar.gz!;
+            $url =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
+        }
+        when (m!download.pear.php.net/!) {
+            # PEAR: force tgz
+            $need_bzme = 1
+                if $url =~ s!\.tar\.bz2$!.tgz!;
+        }
+    }
+
+    return $url, $need_bzme;
 }
 
 1;
