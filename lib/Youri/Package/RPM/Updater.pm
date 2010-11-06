@@ -583,7 +583,9 @@ sub _download_sources {
         } else {
             # otherwise, a single attempt is enough, after some 
             # optional source-specific black magic
-            ($source, $need_bzme) = _get_mangled_url($source, $new_version);
+            ($source, $need_bzme) = _get_mangled_url(
+                $source, $new_version, $spec
+            );
 
             $found = $self->_fetch($source);
         }
@@ -869,7 +871,7 @@ sub _get_new_release_number {
 }
 
 sub _get_mangled_url {
-    my ($url, $version) = @_;
+    my ($url, $version, $spec) = @_;
 
     my $need_bzme = 0;
     given ($url) {
@@ -892,10 +894,22 @@ sub _get_mangled_url {
             $url = "$path/$file";
         }
         when (m!\w+\.(perl|cpan)\.org/!) {
-            # CPAN: force http and tar.gz
+            # query CPAN Meta DB
+            my ($cpan_url, $cpan_version) = _get_cpan_package_info(
+                $spec,
+            );
+
+            if ($cpan_url && $cpan_version && $cpan_version eq $version) {
+                # use the result if available
+                $url = $cpan_url;
+            } else {
+                # otherwise keep current url, with http forced
+                $url =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
+            }
+
+            # force .tar.gz
             $need_bzme = 1
                 if $url =~ s!\.tar\.bz2$!.tar.gz!;
-            $url =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
         }
         when (m!download.pear.php.net/!) {
             # PEAR: force tgz
@@ -905,6 +919,36 @@ sub _get_mangled_url {
     }
 
     return $url, $need_bzme;
+}
+
+sub _get_cpan_package_info {
+    my ($spec) = @_;
+
+    return unless $spec;
+
+    my $name = $spec->srcheader()->tag('name');
+    my $cpan_name = $name =~ /^perl-(\S+)$/; 
+
+    my $agent = LWP::UserAgent->new();
+    $agent->env_proxy();
+
+    my $response = $agent->get(
+        "http://cpanmetadb.appspot.com/v1.0/package/$name"
+    ); 
+
+    return unless $response->is_success();
+
+    my $conf = YAML::AppConfig->new(
+        string => $response->decoded_content()
+    );
+
+    return unless $conf->get('distfile');
+
+    my $url =
+        "http://search.cpan.org/CPAN/authors/id/" . $conf->get('distfile');
+    my $version = $conf->get('version');
+
+    return ($url, $version);
 }
 
 1;
