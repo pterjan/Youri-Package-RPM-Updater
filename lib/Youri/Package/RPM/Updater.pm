@@ -927,13 +927,14 @@ sub _get_cpan_package_info {
     return unless $spec;
 
     my $name = $spec->srcheader()->tag('name');
-    my $cpan_name = $name =~ /^perl-(\S+)$/; 
+    return unless $name =~ /^perl-(\S+)$/;
+    my $cpan_name = $1;
 
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
 
     my $response = $agent->get(
-        "http://cpanmetadb.appspot.com/v1.0/package/$name"
+        "http://cpanmetadb.appspot.com/v1.0/package/$cpan_name"
     ); 
 
     return unless $response->is_success();
