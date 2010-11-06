@@ -565,7 +565,7 @@ sub _update_spec {
 sub _download_sources {
     my ($self, $spec, $new_version, %options) = @_;
 
-    foreach my $source ($self->_get_sources($spec)) {
+    foreach my $source ($self->_get_sources($spec, $new_version)) {
         my $found;
 
         if ($source->{url} =~ m!http://prdownloads.sourceforge.net!) {
@@ -712,11 +712,10 @@ sub _find_source_package {
 }
 
 sub _get_sources {
-    my ($self, $spec) = @_;
+    my ($self, $spec, $version) = @_;
 
     my $header = $spec->srcheader();
-    my $name    = $header->tag('name');
-    my $version = $header->tag('version');
+    my $name   = $header->tag('name');
 
     my @sources;
 
