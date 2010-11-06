@@ -926,9 +926,11 @@ sub _get_cpan_package_info {
 
     return unless $spec;
 
+    # convert mandriva package name to cpan package name
     my $name = $spec->srcheader()->tag('name');
     return unless $name =~ /^perl-(\S+)$/;
     my $cpan_name = $1;
+    $cpan_name =~ s/-/::/g;
 
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
