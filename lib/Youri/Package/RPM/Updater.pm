@@ -934,21 +934,13 @@ sub _fix_source {
 }
 
 sub _get_cpan_package_info {
-    my ($spec) = @_;
-
-    return unless $spec;
-
-    # convert mandriva package name to cpan package name
-    my $name = $spec->srcheader()->tag('name');
-    return unless $name =~ /^perl-(\S+)$/;
-    my $cpan_name = $1;
-    $cpan_name =~ s/-/::/g;
+    my ($name) = @_;
 
     my $agent = LWP::UserAgent->new();
     $agent->env_proxy();
 
     my $response = $agent->get(
-        "http://cpanmetadb.appspot.com/v1.0/package/$cpan_name"
+        "http://cpanmetadb.appspot.com/v1.0/package/$name"
     ); 
 
     return unless $response->is_success();
