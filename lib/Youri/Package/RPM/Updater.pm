@@ -565,35 +565,26 @@ sub _update_spec {
 sub _download_sources {
     my ($self, $spec, $new_version, %options) = @_;
 
-    foreach my $new_source ($self->_get_sources($spec)) {
+    foreach my $source ($self->_get_sources($spec)) {
+        my $found;
 
-        # work on a copy, so as to not mess with original list
-        my $source = $new_source;
-        my ($found, $need_bzme);
-
-        if ($source =~ m!http://prdownloads.sourceforge.net!) {
+        if ($source->{url} =~ m!http://prdownloads.sourceforge.net!) {
             # if content is hosted on source forge, attempt to download
             # from all configured mirrors
             foreach my $mirror (@{$self->{_sourceforge_mirrors}}) {
-                my $sf_source = $source;
-                $sf_source =~ s!prdownloads.sourceforge.net!$mirror.dl.sourceforge.net/sourceforge!;
-                $found = $self->_fetch_tarball($sf_source);
+                my $sf_url = $source->{url};
+                $sf_url =~ s!prdownloads.sourceforge.net!$mirror.dl.sourceforge.net/sourceforge!;
+                $found = $self->_fetch_tarball($sf_url);
                 last if $found;
             }
         } else {
-            # otherwise, a single attempt is enough, after some 
-            # optional source-specific black magic
-            ($source, $need_bzme) = _get_mangled_url(
-                $source, $new_version, $spec
-            );
-
-            $found = $self->_fetch($source);
+            $found = $self->_fetch($source->{url});
         }
 
-        croak "Unable to download source: $source" unless $found;
+        croak "Unable to download source: $source->{url}" unless $found;
 
-        # recompress if needed
-        $found = _bzme($found) if $need_bzme;
+        # recompress source if neeeded
+        _bzme($found) if $source->{bzme};
     }
 
 }
@@ -723,25 +714,58 @@ sub _find_source_package {
 sub _get_sources {
     my ($self, $spec) = @_;
 
-    my @sources =
+    my $header = $spec->srcheader();
+    my $name    = $header->tag('name');
+    my $version = $header->tag('version');
+
+    my @sources;
+
+    # special cases: ignore sources defined in the spec file
+    if ($name =~ /^perl-(\S+)/) {
+        # source URL in the spec file can not be trusted, as it 
+        # change for each release, so try to use CPAN metabase DB
+        my $cpan_name = $1;
+        $cpan_name =~ s/-/::/g;
+
+        # ignore spec file URL, as it changes between releases
+        my ($cpan_url, $cpan_version) = _get_cpan_package_info(
+            $cpan_name
+        );
+
+        if ($cpan_url && $cpan_version && $cpan_version eq $version) {
+            # use the result if available
+            my $source = ($spec->sources_url())[0];
+            @sources = ( { url => $cpan_url, bzme => $source =~ /\.tar\.bz2$/ } );
+        }
+    }
+
+    return @sources if @sources;
+
+    # default case: extract all sources defined with an URL in the spec file
+    @sources =
+        map { _fix_source($_, $version) }
+        map { { url => $_, bzme => 0 } }
         grep { /(?:ftp|svns?|https?):\/\/\S+/ }
         $spec->sources_url();
 
-    if (! @sources) {
-        print "No remote sources were found, fall back on URL tag ...\n"
-            if $self->{_verbose};
+    return @sources if @sources;
 
-        my $url = $spec->srcheader()->tag('url');
+    # fallback case: try a single source, with URL deduced from package URL
 
-        foreach my $rule (@{$self->{_url_rewrite_rules}}) {
-            # curiously, we need two level of quoting-evaluation here :(
-            if ($url =~ s!$rule->{from}!qq(qq($rule->{to}))!ee) {
-                last;
-            }    
-        }
+    print "No remote sources were found, fall back on URL tag ...\n"
+        if $self->{_verbose};
 
-        @sources = ( $url . '/' . ($spec->sources_url())[0] );
+    my $url = $header->tag('url');
+
+    foreach my $rule (@{$self->{_url_rewrite_rules}}) {
+        # curiously, we need two level of quoting-evaluation here :(
+        if ($url =~ s!$rule->{from}!qq(qq($rule->{to}))!ee) {
+            last;
+        }    
     }
+
+    my $source = ($spec->sources_url())[0];
+    @sources = ( { url => $url . '/' . $source, bzme => 0 } );
 
     return @sources;
 }
@@ -870,17 +894,16 @@ sub _get_new_release_number {
 
 }
 
-sub _get_mangled_url {
-    my ($url, $version, $spec) = @_;
+sub _fix_source {
+    my ($source, $version) = @_;
 
-    my $need_bzme = 0;
-    given ($url) {
+    given ($source->{url}) {
         when (m!ftp.gnome.org/pub/GNOME/sources/!) {
             # the last part of the path should match current
             # major and minor version numbers:
             # ftp://ftp.gnome.org/pub/GNOME/sources/ORbit2/2.10/ORbit2-2.10.0.tar.bz2
             my ($major, $minor) = split('\.', $version);
-            $url =~ m!(.+)/([^/]+)$!;
+            $source->{url} =~ m!(.+)/([^/]+)$!;
             my ($path, $file) = ($1, $2);
             if ($path =~ m!/(\d+)\.(\d+)$!) {
                 # expected format found
@@ -891,34 +914,23 @@ sub _get_mangled_url {
             } else {
                 $path .= "/$major.$minor";
             }
-            $url = "$path/$file";
+            $source->{url} = "$path/$file";
         }
         when (m!\w+\.(perl|cpan)\.org/!) {
-            # query CPAN Meta DB
-            my ($cpan_url, $cpan_version) = _get_cpan_package_info(
-                $spec,
-            );
-
-            if ($cpan_url && $cpan_version && $cpan_version eq $version) {
-                # use the result if available
-                $url = $cpan_url;
-            } else {
-                # otherwise keep current url, with http forced
-                $url =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
-            }
-
+            # force http
+            $source->{url} =~ s!ftp://ftp\.(perl|cpan)\.org/pub/CPAN!http://www.cpan.org!;
             # force .tar.gz
-            $need_bzme = 1
-                if $url =~ s!\.tar\.bz2$!.tar.gz!;
+            $source->{bzme} = 1
+                if $source->{url} =~ s!\.tar\.bz2$!.tar.gz!;
         }
         when (m!download.pear.php.net/!) {
             # PEAR: force tgz
-            $need_bzme = 1
-                if $url =~ s!\.tar\.bz2$!.tgz!;
+            $source->{bzme} = 1
+                if $source->{url} =~ s!\.tar\.bz2$!.tgz!;
         }
     }
 
-    return $url, $need_bzme;
+    return $source;
 }
 
 sub _get_cpan_package_info {
