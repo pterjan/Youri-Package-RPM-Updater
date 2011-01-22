@@ -1,3 +1,6 @@
+2011-01-22 Guillaume Rousse <guillomovitch@zarb.org> 0.6.0
+	* compatibility with either RPM or RPM4 perl bindings
+
 2009-12-02 Guillaume Rousse <guillomovitch@zarb.org> 0.5.2
 	* add application/x-tar as a valid mime-type for all compressed 
 	  tar archives
