@@ -132,9 +132,9 @@ use File::Temp qw/tempdir/;
 use List::MoreUtils qw/none/;
 use LWP::UserAgent;
 use SVN::Client;
-use RPM4;
 use Readonly;
 use YAML::AppConfig;
+use Youri::Package::RPM 0.002;
 use version; our $VERSION = qv('0.5.2');
 use feature qw/switch/;
 
@@ -212,6 +212,8 @@ new_version_message: New version %%VERSION
 
 new_release_message: Rebuild
 EOF
+
+my $wrapper_class = Youri::Package::RPM->get_wrapper_class();
 
 =head1 CLASS METHODS
 
@@ -294,15 +296,15 @@ sub new {
     my ($topdir, $sourcedir);
     if ($options{topdir}) {
         $topdir = File::Spec->rel2abs($options{topdir});
-        RPM4::add_macro("_topdir $topdir");
+        $wrapper_class->add_macro("_topdir $topdir");
     } else {
-        $topdir = RPM4::expand('%_topdir');
+        $topdir = $wrapper_class->expand_macro('%_topdir');
     }
     if ($options{sourcedir}) {
         $sourcedir = File::Spec->rel2abs($options{sourcedir});
-        RPM4::add_macro("_sourcedir $sourcedir");
+        $wrapper_class->add_macro("_sourcedir $sourcedir");
     } else {
-        $sourcedir = RPM4::expand('%_sourcedir');
+        $sourcedir = $wrapper_class->expand_macro('%_sourcedir');
     }
 
     my $config = YAML::AppConfig->new(string => $defaults);
@@ -414,8 +416,8 @@ sub update_from_source {
     my ($self, $src_file, $new_version, %options) = @_;
     croak "Not a class method" unless ref $self;
 
-    RPM4::setverbosity(0);
-    my ($spec_file) = RPM4::installsrpm($src_file);
+    $wrapper_class->set_verbosity(0);
+    my ($spec_file) = $wrapper_class->install_srpm($src_file);
 
     croak "Unable to install source package $src_file, aborting"
         unless $spec_file;
@@ -439,7 +441,7 @@ sub update_from_spec {
     $options{update_revision}  = 1 unless defined $options{update_revision};
     $options{update_changelog} = 1 unless defined $options{update_changelog};
 
-    my $spec = RPM4::Spec->new($spec_file, force => 1)
+    my $spec = $wrapper_class->new_spec($spec_file, force => 1)
         or croak "Unable to parse spec $spec_file\n"; 
 
     $self->_update_spec($spec_file, $spec, $new_version, %options) if
@@ -448,7 +450,7 @@ sub update_from_spec {
         $options{spec_line_callback}   ||
         $options{spec_line_expression};
 
-    $spec = RPM4::Spec->new($spec_file, force => 1)
+    $spec = $wrapper_class->new_spec($spec_file, force => 1)
         or croak "Unable to parse updated spec file $spec_file\n"; 
 
     $self->_download_sources($spec, $new_version, %options) if
@@ -530,7 +532,7 @@ sub _update_spec {
                 $entry =~ s/\%\%VERSION/$new_version/g;
             }
 
-            my $title = RPM4::expand(
+            my $title = $wrapper_class->expand_macro(
                 DateTime->now()->strftime('%a %b %d %Y') .
                 ' ' .
                 $self->_get_packager() .
@@ -687,7 +689,7 @@ sub _fetch_potential_tarball {
 
 sub _get_packager {
     my ($self) = @_;
-    my $packager = RPM4::expand('%packager');
+    my $packager = $wrapper_class->expand_macro('%packager');
     if ($packager eq '%packager') {
         my $login = (getpwuid($<))[0];
         $packager = $ENV{EMAIL} ? "$login <$ENV{EMAIL}>" : $login;
