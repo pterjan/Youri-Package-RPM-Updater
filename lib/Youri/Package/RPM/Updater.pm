@@ -467,7 +467,7 @@ sub _update_spec {
     my $old_version = $header->tag('version');
     return if $options{check_new_version} &&
               $new_version                &&
-              RPM4::rpmvercmp($old_version, $new_version) >= 0;
+              $wrapper_class->compare_revisions($old_version, $new_version) >= 0;
 
     my $new_release = $options{release} || '';
     my $epoch       = $header->tag('epoch');
