@@ -1,3 +1,6 @@
+2011-01-30 Guillaume Rousse <guillomovitch@zarb.org> 0.6.1
+	* more RPM/RPM4 fixes
+
 2011-01-22 Guillaume Rousse <guillomovitch@zarb.org> 0.6.0
 	* compatibility with either RPM or RPM4 perl bindings
 
