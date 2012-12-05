@@ -135,7 +135,7 @@ use SVN::Client;
 use Readonly;
 use YAML::AppConfig;
 use Youri::Package::RPM 0.002;
-use version; our $VERSION = qv('0.6.1');
+use version; our $VERSION = qv('0.6.2');
 use feature qw/switch/;
 
 # default values
@@ -883,7 +883,7 @@ sub _get_new_release_number {
             $value =~ /^(.*?)(\d+)($release_suffix)?$/;
 
         croak "Unable to extract release number from value '$value'"
-            unless $number;
+            unless defined($number);
 
         $number++;
     }
