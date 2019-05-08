@@ -809,7 +809,7 @@ sub _get_new_version {
 
     return unless $line =~ /^
         (
-            %define \s+              # macro
+            %(?:define|global) \s+   # macro
                 (?:
                     version
                 |
@@ -835,7 +835,7 @@ sub _get_new_release {
 
     return unless $line =~ /^
     (
-        %define \s+      # macro
+        %(?:define|global) \s+      # macro
             (?:
                 rel
             |
