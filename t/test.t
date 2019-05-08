@@ -30,6 +30,7 @@ $wrapper_class->add_macro("packager $packager");
 
 # ensure changelog is not truncated
 $wrapper_class->add_macro("_changelog_truncate 0");
+$wrapper_class->add_macro("_changelog_trimtime 0");
 
 my $updater = Youri::Package::RPM::Updater->new();
 isa_ok($updater, 'Youri::Package::RPM::Updater');
