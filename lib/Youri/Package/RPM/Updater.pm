@@ -857,7 +857,7 @@ sub _get_new_release {
             my ($macro_name, $macro_spacing, $macro_value) = ($1, $2, $3);
             $macro_value = _get_new_release_number($macro_value, $new_version, $release_suffix);
             $value = '%' . $macro_name . $macro_spacing . $macro_value;
-        } elsif ($value =~ /^% { (\w+) (\s+) (\S+) } $/x) {
+        } elsif ($value =~ /^% \{ (\w+) (\s+) (\S+) \} $/x) {
             my ($macro_name, $macro_spacing, $macro_value) = ($1, $2, $3);
             $macro_value = _get_new_release_number($macro_value, $new_version, $release_suffix);
             $value = '%{' . $macro_name . $macro_spacing . $macro_value . '}';
