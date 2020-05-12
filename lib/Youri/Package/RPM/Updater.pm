@@ -135,7 +135,7 @@ use SVN::Client;
 use Readonly;
 use YAML::AppConfig;
 use Youri::Package::RPM 0.002;
-use version; our $VERSION = qv('0.6.2');
+use version; our $VERSION = qv('0.6.3');
 use experimental qw/switch/;
 
 # default values
