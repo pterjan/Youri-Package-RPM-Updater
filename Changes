@@ -1,3 +1,7 @@
+2019-05-12 Pascal Terjan <pterjan@mageia.org> 0.6.3
+	* fix unescaped left brace in regex
+	* support using global instead of define
+
 2012-12-04 Pascal Terjan <pterjan@zarb.org> 0.6.2
         * accept 0 as a valid revision
 
